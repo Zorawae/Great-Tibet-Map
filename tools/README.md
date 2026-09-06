@@ -26,6 +26,42 @@ Range crests and peaks are listed in the script itself rather than taken from
 Natural Earth, which ships no range centrelines; they carry the labels and are
 not a claim about exact extent.
 
+## Anchors
+
+Every label is a pair: an **anchor** that belongs to the geometry and is measured
+in the world, and an **offset** that belongs to the type and is measured in
+line-heights. The anchor never moves to make room; only the offset is free, and
+`OFFSET_CAP` bounds that.
+
+Anchors are chosen by one interface in `build-physical.py`, with a strategy per
+kind of geometry:
+
+    strategy(geometry, metrics=None, ...) -> [{p, a, quality, inside}, ...]
+
+`p` is the anchor point in viewBox units, `a` the tangent there in degrees,
+`quality` how good the anchor is on its own terms before anything competes for
+the space, and `inside` whether it falls in the core of the frame rather than
+against an edge. A strategy returns a scored *set*, not a point: a long river
+has several honest places to carry its name, and settling on one before knowing
+what else wants that space throws away the freedom the search needs.
+
+`line_anchors()` serves rivers and range crests -- a point along the course, set
+at the tangent there. `point_anchors()` serves peaks -- the coordinate itself,
+since which way round the dot the name goes is an offset, not an anchor.
+`ANCHOR_STRATEGIES` maps a feature's kind to its strategy, and `anchors(kind,
+geometry)` is what everything else calls; `place-labels.py` searches offsets
+against whatever set it gets back and knows nothing about crests or coordinates.
+
+A new kind of feature is a row in that table, and one more strategy only if its
+geometry is a shape neither of these describes. A lake is a polygon and has
+neither a course nor a single coordinate, which is why the five of them still
+carry no name.
+
+`quality` is computed but nothing reads it yet: the search still ranks
+candidates by its own cost function. Introducing the interface was deliberately
+a port -- `build-physical.py` reproduces the shipped `DATA` byte for byte and
+`place-labels.py` reproduces the shipped placement.
+
 ## Where the range names sit
 
 Each range carries two numbers: how far along its crest the name sits, and how

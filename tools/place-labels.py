@@ -116,17 +116,16 @@ PEAK_SPOTS = [(dx, dy) for r in (14, 24, 38, 54)
 def place_one(name, kind, runs, others):
     """Best position for one label given every other label's current box."""
     w, h = SIZE[name]['w'], SIZE[name]['h']
+    # Where the name may attach is the anchor strategy's answer, not this
+    # file's: bp.anchors() returns the set of honest anchors for the kind of
+    # thing this feature is.  What is searched here is the offset -- how far
+    # off the anchor the type sits, and which way round.
     if kind == 'peak':
-        px, py = runs[0][0]
+        (px, py), = [a['p'] for a in bp.anchors(kind, runs[0][0], SIZE[name])]
         cands = [({'p': (px + dx, py + dy), 'a': 0.0}, 0, (dx, dy)) for dx, dy in PEAK_SPOTS]
     else:
-        runs = [r for r in runs if len(r) > 1]
-        cands = []
-        for dy in DYS:
-            for f in FRACS:
-                lab = bp.label_anchor(runs, f)
-                if lab:
-                    cands.append((lab, dy, (f, dy)))
+        aset = bp.anchors(kind, [r for r in runs if len(r) > 1], SIZE[name], fracs=FRACS)
+        cands = [(a, dy, (a['frac'], dy)) for dy in DYS for a in aset]
     best = None
     for lab, dy, key in cands:
         if True:

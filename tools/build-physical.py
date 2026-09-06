@@ -116,23 +116,56 @@ def clip_runs(pts, box):
     return [r for r in runs if len(r) > 1]
 
 
-def label_anchor(runs, frac=0.45, core=(120.0, 60.0, 1060.0, 700.0)):
-    """A point and tangent angle partway along the longest run, for placing the
-    feature's name.  Preference is given to the part of the course that falls in
-    the middle of the frame, so labels do not end up jammed against an edge."""
-    x0, y0, x1, y1 = core
-    inner = [r for r in runs
-             if any(x0 <= p[0] <= x1 and y0 <= p[1] <= y1 for p in r)] or runs
-    run = max(inner, key=lambda r: sum(math.hypot(b[0] - a[0], b[1] - a[1])
-                                       for a, b in zip(r, r[1:])))
-    seg = [math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(run, run[1:])]
-    total = sum(seg)
-    if total <= 0:
-        return None
-    want, acc = total * frac, 0.0
+# ---------------------------------------------------------- anchor strategies
+#
+# Every label is a pair: an anchor that belongs to the geometry and is measured
+# in the world, and an offset that belongs to the type and is measured in
+# line-heights.  These functions choose the anchor.  It never moves to make
+# room -- only the offset is free, and OFFSET_CAP below is what bounds that.
+#
+# They all have the same signature, and that uniformity is the point: a kind of
+# feature the map does not draw yet is labelled by writing one more of these,
+# with nothing downstream to change.
+#
+#     strategy(geometry, metrics=None, ...) -> [{p, a, quality, inside}, ...]
+#
+#   p        the anchor point, in the viewBox's units
+#   a        the tangent there in degrees, clamped to +-MAX_TILT so it reads
+#   quality  0..1, how good the anchor is on its own terms, before anything
+#            else competes with it for the space
+#   inside   whether it falls in the core of the frame rather than against an
+#            edge
+#
+# A strategy returns a scored *set*, not a point.  A long river has several
+# honest places to carry its name, and settling on one before knowing what else
+# wants that space throws away the freedom the search needs.
+#
+# `metrics` is the label's measured box, {'w','h'}, from tools/measure-labels.py.
+# It is what makes "straight enough" answerable -- straight over the span the
+# name actually covers -- and without it that term is undefined and drops out.
+#
+# Nothing reads `quality` yet: tools/place-labels.py still ranks candidates by
+# its own cost function.  Introducing the interface is deliberately a port and
+# not a change of behaviour -- the anchors, and the numbers chosen from them,
+# are the ones already shipped.
+
+CORE = (120.0, 60.0, 1060.0, 700.0)      # the frame, less its margins
+
+
+def in_core(x, y, core=CORE):
+    return core[0] <= x <= core[2] and core[1] <= y <= core[3]
+
+
+def _run_length(run):
+    return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(run, run[1:]))
+
+
+def _walk(run, seg, dist):
+    """The point `dist` along a run, and the tangent angle there."""
+    acc = 0.0
     for i, d in enumerate(seg):
-        if acc + d >= want:
-            t = (want - acc) / d if d else 0
+        if acc + d >= dist:
+            t = (dist - acc) / d if d else 0
             a, b = run[i], run[i + 1]
             ang = math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))
             if ang > 90:
@@ -143,11 +176,95 @@ def label_anchor(runs, frac=0.45, core=(120.0, 60.0, 1060.0, 700.0)):
             # Kham run nearly north-south and were coming out at 70-80 degrees.
             # Lean it towards the crest without following it all the way.
             ang = max(-MAX_TILT, min(MAX_TILT, ang))
-            return {'p': [round(a[0] + t * (b[0] - a[0]), 1),
-                          round(a[1] + t * (b[1] - a[1]), 1)],
-                    'a': round(ang, 1)}
+            return (a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])), ang
         acc += d
     return None
+
+
+def _straightness(run, seg, dist, span):
+    """Chord over arc across the span the name covers: 1.0 on a straight crest,
+    less through a bend.  Type is set in a straight line, so a course that turns
+    under the name cannot carry it however long it is."""
+    if span <= 0:
+        return 1.0
+    total = sum(seg)
+    a, b = max(0.0, dist - span / 2.0), min(total, dist + span / 2.0)
+    arc = b - a
+    if arc <= 0:
+        return 1.0
+    pa, pb = _walk(run, seg, a), _walk(run, seg, b)
+    if not pa or not pb:
+        return 1.0
+    return min(1.0, math.hypot(pb[0][0] - pa[0][0], pb[0][1] - pa[0][1]) / arc)
+
+
+def line_anchors(runs, metrics=None, fracs=(0.45,), core=CORE):
+    """Anchors along a line: rivers, range crests, and whatever else is drawn as
+    a course.  The name sits on its own line, a fraction of the way along it,
+    set at the tangent there.  The run chosen is the longest one that reaches
+    the core of the frame, so a name does not end up jammed against an edge."""
+    if not runs:
+        return []
+    inner = [r for r in runs if any(in_core(p[0], p[1], core) for p in r)] or runs
+    run = max(inner, key=_run_length)
+    seg = [math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(run, run[1:])]
+    total = sum(seg)
+    if total <= 0:
+        return []
+    span = metrics['w'] if metrics else 0.0
+    out = []
+    for frac in fracs:
+        got = _walk(run, seg, total * frac)
+        if not got:
+            continue
+        (x, y), ang = got
+        # Quality is how straight the crest is under the name, times how far the
+        # anchor keeps from either end of the run -- a name that runs off the
+        # end of its own line is attached to nothing at half its length.  Being
+        # in the frame's core is reported separately, as `inside`, so the two
+        # signals stay separable once the solver starts reading them.
+        ends = min(frac, 1.0 - frac) * 2.0
+        out.append({'p': [round(x, 1), round(y, 1)], 'a': round(ang, 1),
+                    'quality': round(_straightness(run, seg, total * frac, span)
+                                     * max(0.0, min(1.0, ends)), 3),
+                    'inside': in_core(x, y, core), 'frac': frac})
+    return out
+
+
+def point_anchors(p, metrics=None, core=CORE):
+    """A point feature's anchor is its coordinate: peaks, towns, and anything
+    else the map draws as a dot.  There is nothing to choose, so quality is 1.0
+    by definition; which way round the dot the name goes is an offset, not an
+    anchor, and belongs to the type."""
+    x, y = p
+    return [{'p': [round(x, 1), round(y, 1)], 'a': 0.0, 'quality': 1.0,
+             'inside': in_core(x, y, core)}]
+
+
+# Which strategy labels each kind of feature.  A new kind is a row here, and one
+# more function above only if its geometry is a shape neither of these describes
+# -- a lake is a polygon and has neither a course nor a single coordinate, which
+# is why the five of them still carry no name.
+ANCHOR_STRATEGIES = {
+    'river': line_anchors,
+    'range': line_anchors,
+    'peak': point_anchors,
+}
+
+
+def anchors(kind, geometry, metrics=None, **kw):
+    """The anchor set for one feature, chosen by what kind of thing it is."""
+    if kind not in ANCHOR_STRATEGIES:
+        raise SystemExit('no anchor strategy for a %r' % kind)
+    return ANCHOR_STRATEGIES[kind](geometry, metrics, **kw)
+
+
+def label_anchor(runs, frac=0.45, kind='range'):
+    """The one anchor committed to DATA for a linear feature, cut down to the
+    two fields the widget reads.  Which anchor it is was decided here, at build
+    time; the widget is handed the answer and never looks for one itself."""
+    got = anchors(kind, runs, fracs=(frac,))
+    return {'p': got[0]['p'], 'a': got[0]['a']} if got else None
 
 
 KHAM_LONS = (93.0, 103.5)   # the gang all lie within this band
@@ -557,7 +674,7 @@ def main():
                     runs.append(simplify(run, TOL_RIVER))
         if runs:
             item = {'bo': bo, 'en': en, 'main': main_stem, 'dy': dy,
-                    'd': to_path(runs), 'lab': label_anchor(runs, frac)}
+                    'd': to_path(runs), 'lab': label_anchor(runs, frac, 'river')}
             out['rivers'].append(item)
             if item['lab']:
                 linear.append({'item': item, 'lab': item['lab'], 'dy': dy, 'runs': runs})
@@ -598,7 +715,7 @@ def main():
             runs = []
         item = {'bo': bo, 'en': name, 'd': to_path(runs), 'dy': dy,
                 'dFull': to_path([pts]),
-                'lab': label_anchor(runs or [pts], frac)}
+                'lab': label_anchor(runs or [pts], frac, 'range')}
         out['ranges'].append(item)
         if item['lab']:
             linear.append({'item': item, 'lab': item['lab'], 'dy': dy,
@@ -608,7 +725,7 @@ def main():
         x, y = project(lon, lat)
         if not near_edge(tibet, x, y):
             continue
-        out['peaks'].append({'bo': bo, 'en': en, 'p': [round(x, 1), round(y, 1)],
+        out['peaks'].append({'bo': bo, 'en': en, 'p': anchors('peak', (x, y))[0]['p'],
                              'ldx': ldx, 'ldy': ldy})
 
     mark_connectors(linear)
