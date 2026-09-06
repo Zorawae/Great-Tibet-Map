@@ -52,11 +52,40 @@ distances and draws a connector when the nearest foreign feature is less than
 and committed to `DATA` as `lead`, where it shows up in a diff; the widget only
 draws what it is told.
 
-Four names carry one: Pobar Gang (ratio 0.13), Duldza Zalmo Gang (0.18),
-Sangge Khabab (1.14) and Nyenchen Tanglha (1.21). Two more measure as ambiguous
-but get nothing, because their names are already touching their own crest and a
-tick would have no length to draw: Tshawa Gang (0.62) and Markham Gang (1.45).
-Those two are a placement problem, not a connector one.
+Four names carry one: Duldza Zalmo Gang (ratio 0.18), Sangge Khabab (1.15),
+Langchen Khabab (1.15) and Nyenchen Tanglha (1.43). Three more measure as
+ambiguous but get nothing, because their names are already touching their own
+crest and a tick would have no length to draw: Pobar Gang (0.18), Tshawa Gang
+(0.44) and Markham Gang (1.45). Those three are a placement problem, not a
+connector one, and they are what tier deferral is for -- a name that cannot be
+served where it belongs should stand down, not be jammed in.
+
+## How far a name may travel
+
+`OFFSET_CAP` is one and a half lines, twenty-one units, and it is the same for
+every label whatever the feature's importance. The offset belongs to the type,
+not to the geography: past this the anchor stops being obvious and the name is
+no longer reliably read as the feature's.
+
+The cap is enforced twice. `place-labels.py` will not search past it -- it is
+not a preference the cost function can outbid. That matters, because the cost
+function would outbid it: overlap is priced as a squared penetration depth, so
+a 20x20 overlap scores about 400 and justifies some 570 units of flight. No
+weighting fixes that; it only moves the crossover. So distance past the cap is
+not priced at all, it is refused.
+
+`check_labels()` in `build-physical.py` then asserts it on the built output,
+because the tables here are edited by hand as well as written by the placer,
+and a number typed straight into them is the one thing no search ever sees. It
+also checks that every anchor is a point on the feature the map actually draws,
+and that no name is marked for a connector that has no room to draw one. A
+violation stops the build.
+
+Bringing Pobar Gang back inside the cap cost something honest: it had been
+flying 25 units to clear the crowd at the Yarlung Tsangpo's great bend, and now
+sits on its own crest with the river crossing under it. The search has nowhere
+better within the cap. This is the crowding the cap makes visible rather than
+hides.
 
 The six gang are divisions of Kham, so the search also prefers to keep their
 names inside the Kham polygon.

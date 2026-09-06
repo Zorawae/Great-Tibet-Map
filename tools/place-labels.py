@@ -34,11 +34,19 @@ TIBET = bp.rings_of(DATA['outline'])
 KHAM = bp.rings_of(DATA['regions']['kham']['d'])
 PAD = 2.5
 FRACS = [i / 100 for i in range(4, 97, 2)]
-# A name that cannot fit near its own crest may move further off it. Which ridge
-# it belongs to then stays clear because the widget draws a connector -- not past
-# some distance, but when the name is nearer somebody else's feature than its
-# own; mark_connectors() in build-physical.py decides that and records it.
-DYS = list(range(-64, -5, 3)) + list(range(8, 65, 3))
+# A name that cannot fit near its own crest may move a little further off it.
+# Which ridge it belongs to then stays clear because the widget draws a
+# connector -- not past some distance, but when the name is nearer somebody
+# else's feature than its own; mark_connectors() in build-physical.py decides
+# that and records it.
+#
+# The search is bounded by bp.OFFSET_CAP rather than trusting the cost function
+# to keep the offsets small.  It would not: overlap is priced as a squared
+# depth, so a 20x20 overlap scores about 400 and buys some 570 units of flight.
+# No weighting fixes that -- it only moves the crossover -- so distance is not
+# priced at all past the cap, it is refused.
+DYS = [d for d in list(range(-64, -5, 3)) + list(range(8, 65, 3))
+       if abs(d) <= bp.OFFSET_CAP]
 
 
 def corners(cx, cy, w, h, ang):
@@ -102,7 +110,8 @@ FEATURES = ([(g['en'], 'range',
 PEAK_SPOTS = [(dx, dy) for r in (14, 24, 38, 54)
               for dx, dy in ((0, r), (0, -r), (r, 6), (-r, 6),
                              (r * 0.7, -r * 0.7), (-r * 0.7, -r * 0.7),
-                             (r * 0.7, r * 0.7), (-r * 0.7, r * 0.7))]
+                             (r * 0.7, r * 0.7), (-r * 0.7, r * 0.7))
+              if math.hypot(dx, dy) <= bp.OFFSET_CAP]
 
 def place_one(name, kind, runs, others):
     """Best position for one label given every other label's current box."""

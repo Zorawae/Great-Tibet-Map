@@ -245,6 +245,14 @@ LINE_H = 14.0
 LEAD_GAP = 2.0          # the tick stops this far short of the type
 AMBIGUOUS = 1.6         # below this ratio a name is not obviously its own
 
+# How far a name may ever be pushed off its anchor: one and a half lines, and
+# the same for every label whatever its importance.  The offset belongs to the
+# type, not to the geography, so it cannot be spent to buy off a collision --
+# past this the anchor stops being obvious and the name is no longer reliably
+# read as the feature's.  A label that cannot be served within the cap yields
+# by standing down, never by travelling further.
+OFFSET_CAP = 1.5 * LINE_H
+
 
 def dist_to_runs(runs, x, y):
     """Shortest distance from a point to a set of polylines."""
@@ -301,6 +309,43 @@ def mark_connectors(feats):
             f['item']['lead'] = 1
 
 
+def check_labels(out):
+    """Refuse to build a map whose labels break the rules the placer works to.
+
+    The tables in this file are edited by hand as well as written by
+    tools/place-labels.py, and a number typed straight into them is the one
+    thing no search ever sees.  These are the invariants that make a label
+    readable as its feature's, so a violation stops the build rather than
+    shipping quietly and being noticed in a screenshot months later.
+    """
+    bad = []
+    for kind, items in (('river', out['rivers']), ('range', out['ranges'])):
+        for it in items:
+            if not it['lab']:
+                continue
+            if abs(it['dy']) > OFFSET_CAP:
+                bad.append('%s %s: pushed %g off its line, past the %g cap'
+                           % (kind, it['en'], abs(it['dy']), OFFSET_CAP))
+            # The anchor belongs to the geometry: it is a point ON the feature,
+            # and only the offset is free.  A frac that misses -- an empty run,
+            # a spine that clipped away -- would put the name nowhere in
+            # particular and the connector would point at nothing.
+            runs = [r for r in rings_of(it['d']) if len(r) > 1] \
+                or [r for r in rings_of(it.get('dFull', '')) if len(r) > 1]
+            if dist_to_runs(runs, *it['lab']['p']) > 0.6:
+                bad.append('%s %s: anchor is not on the drawn feature' % (kind, it['en']))
+            if it.get('lead') and not has_tick(it['dy']):
+                bad.append('%s %s: marked for a connector with no room to draw one'
+                           % (kind, it['en']))
+    for k in out['peaks']:
+        off = math.hypot(k['ldx'], k['ldy'])
+        if off > OFFSET_CAP:
+            bad.append('peak %s: name sits %.1f from the summit, past the %g cap'
+                       % (k['en'], off, OFFSET_CAP))
+    if bad:
+        raise SystemExit('label rules broken:\n  ' + '\n  '.join(bad))
+
+
 def clip_to_tibet(runs, tibet, tol=0.0):
     """Keep only the parts of each run that fall inside Tibet.  The map is about
     the three regions, so a river is drawn where it runs through them and not
@@ -340,13 +385,13 @@ def to_path(runs, closed=False):
 # carry (Brahmaputra, Mekong, Yangtze ...) are not shown on the map.  The last
 # two numbers are where the label sits along the course and how far off it.
 RIVERS = [
-    ('ཡར་ཀླུང་གཙང་པོ་', 'Yarlung Tsangpo', ['Maquan', 'Yarlung', 'Dihang', 'Brahmaputra'], 1, 0.70, -10),
+    ('ཡར་ཀླུང་གཙང་པོ་', 'Yarlung Tsangpo', ['Maquan', 'Yarlung', 'Dihang', 'Brahmaputra'], 1, 0.78, 11),
     ('རྨ་ཆུ་',           'Ma Chu',          ['Huang'],                                     1, 0.50, 8),
     ('འབྲི་ཆུ་',          'Drichu',          ['Tuotuo', 'Tongtian', 'Jinsha', 'Chang Jiang'],1, 0.08, 8),
     ('རྫ་ཆུ་',           'Za Qu',           ['Za', 'Lancang', 'Mekong'],                   1, 0.88, 8),
     ('རྒྱ་མོ་རྔུལ་ཆུ་',    'Gyalmo Ngulchu',  ['Nu', 'Salween'],                             1, 0.48, -10),
     ('སེང་གེ་ཁ་འབབ་',    'Sangge Khabab',   ['Shiquan', 'Indus'],                          1, 0.84, -19),
-    ('གླང་ཆེན་ཁ་འབབ་',   'Langchen Khabab', ['Sutlej'],                                    0, 0.56, 8),
+    ('གླང་ཆེན་ཁ་འབབ་',   'Langchen Khabab', ['Sutlej'],                                    0, 0.22, -10),
     # Macha Khabab is left out: Natural Earth's Ghaghara segment begins at the
     # border, so only about 15 px of it falls inside Tibet -- too little to read
     # as a river, while its name crowded the corner where the Sengge and Langchen
@@ -407,13 +452,13 @@ PEAK_RANGES = [
         (76.51, 35.88),   # K2               8611 m
         (77.80, 35.20),   # Shahi Kangri     6934 m
         (78.50, 33.80)]), # Kangju Kangri    6725 m
-    ('\u0f42\u0f44\u0f66\u0f0b\u0f4f\u0f72\u0f0b\u0f66\u0f7a\u0f0b', 'Gangdise', 0.50, -10, [
+    ('\u0f42\u0f44\u0f66\u0f0b\u0f4f\u0f72\u0f0b\u0f66\u0f7a\u0f0b', 'Gangdise', 0.52, -10, [
         (81.00, 32.80),   # Nganglong Kangri 6720 m
         (81.31, 31.07),   # Gang Rinpoche    6638 m
         (83.50, 30.90),   # anchor
         (86.50, 30.70),   # anchor
         (88.50, 30.50)]), # anchor, meeting the Nyenchen Tanglha
-    ('\u0f42\u0f49\u0f53\u0f0b\u0f46\u0f7a\u0f53\u0f0b\u0f50\u0f44\u0f0b\u0f63\u0fb7\u0f0b', 'Nyenchen Tanglha', 0.44, -10, [
+    ('\u0f42\u0f49\u0f53\u0f0b\u0f46\u0f7a\u0f53\u0f0b\u0f50\u0f44\u0f0b\u0f63\u0fb7\u0f0b', 'Nyenchen Tanglha', 0.50, -10, [
         (90.57, 30.38),   # Nyenchen Tanglha 7162 m
         (92.50, 30.60),   # anchor
         (94.30, 30.20),   # anchor
@@ -448,11 +493,11 @@ PEAK_RANGES = [
 GANG_BETWEEN = [
     ('དུལ་དབང་ཟལ་མོ་སྒང་', 'Duldza Zalmo Gang', 0.04, -16, 'Drichu',         'Za Qu',  (31.8, 33.6)),
     ('མར་རྫ་སྒང་', 'Mardza Gang',          0.50, 8, 'Ma Chu',         'Drichu', (32.0, 33.4)),
-    ('ཚ་བ་སྒང་', 'Tshawa Gang',       0.82, 8, 'Gyalmo Ngulchu', 'Za Qu',  (28.2, 30.6)),
+    ('ཚ་བ་སྒང་', 'Tshawa Gang',       0.76, 8, 'Gyalmo Ngulchu', 'Za Qu',  (28.2, 30.6)),
     ('རྨར་ཁམས་སྒང་', 'Markham Gang',      0.50, 8, 'Za Qu',          'Drichu', (28.2, 30.6)),
 ]
 GANG_ANCHORED = [
-    ('པོ་བར་སྒང་', 'Pobar Gang', 0.32, -25, [
+    ('པོ་བར་སྒང་', 'Pobar Gang', 0.36, 8, [
         (94.40, 30.30), (95.30, 30.00), (96.20, 29.90), (97.00, 30.00)]),
     ('མི་ཉག་སྒང་', 'Minyag Gang', 0.68, 11, [
         (100.60, 30.80),
@@ -468,8 +513,8 @@ GANG_ANCHORED = [
 # tools/place-labels.py; the last two numbers are the offset it chose.
 PEAKS = [
     ('ཇོ་མོ་གླང་མ་', 'Chomo lungma', 86.925, 27.988, 10, -10),
-    ('གངས་རིན་པོ་ཆེ་', 'Gang Rinpoche', 81.312, 31.067, 0, 24),
-    ('', 'Namcha Barwa', 95.055, 29.628, 14, 6),
+    ('གངས་རིན་པོ་ཆེ་', 'Gang Rinpoche', 81.312, 31.067, 0, 14),
+    ('', 'Namcha Barwa', 95.055, 29.628, 0, 14),
     ('', 'Amnye Machen', 99.478, 34.828, 0, -14),
 ]
 
@@ -567,6 +612,7 @@ def main():
                              'ldx': ldx, 'ldy': ldy})
 
     mark_connectors(linear)
+    check_labels(out)
     for f in sorted(linear, key=lambda f: f['ratio']):
         sys.stderr.write('  %-20s ratio %6.2f  %s\n'
                          % (f['item']['en'], f['ratio'],
