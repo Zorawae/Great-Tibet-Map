@@ -200,6 +200,26 @@ rather than quoted numbers.
   Kanlho(ཀན་ལྷོ་) in Gansu, and northern Ngawa (Ngawa, Dzoge, Marthang, Dzamthang,
   Zungchu, Zitsa Degu).
 
+**Editor's note on the names above.** Places are named in the form the map
+itself uses, with the Tibetan in brackets wherever an established Tibetan name
+exists. Three conventions keep the lists from drifting, and each has already
+been mistaken once:
+
+- The bracket after Ngawa lists that prefecture's **Gyalrong counties** and
+  nothing else. A place inside a prefecture already named on the same line is
+  covered by it and is not repeated — Lithang sits in Garzê, Gyalthang
+  (Shangri-La) in Dêqên — and a town or a walled quarter is not an entry
+  alongside a county.
+- The units are **prefecture-level** unless a line says otherwise. Tso Ngön is
+  the province, so it heads the prefectures that belong to it rather than
+  standing beside them, and Kanlho, which is in Gansu, falls outside that group.
+- **Yushu appears under Kham, not Amdo.** It is one of Qinghai's eight
+  prefectures, which is why the Tso Ngön list has seven.
+
+Romanisation is not standardised here: the same name may be spelled one way in
+this file and another in the widget's data. The Tibetan is what binds them, so
+where the two disagree the Tibetan is the name that counts.
+
 **Internationally recognised boundaries only.** Every region is clipped against
 the boundaries of India, Nepal, Bhutan, Bangladesh and Myanmar, so nothing
 administered by those states appears inside the highlight. The southern edge
