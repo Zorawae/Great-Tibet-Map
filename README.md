@@ -104,11 +104,11 @@ render as empty boxes. The interactive version shows both.
   the cultural regions to compare the two.
 - **Rivers and ranges** — the great rivers that rise on the plateau and five of
   its lakes; the six gang of Kham, from *Chushi Gangdruk*, with the Himalaya,
-  Kunlun, Gangdise and Nyenchen Tanglha; and four peaks. Named in Tibetan, and
-  in Latin letters, following the same Labels toggle as the towns. Drawn only
-  where they run through the three regions. Off by default; the regions come
-  first and the physical layer is context you opt into. One *Physical* button
-  cycles Off → Rivers → Ranges → Both.
+  Kunlun, Gangdise, Nyenchen Tanglha, Gdang La and Dhola Ringmo; and four
+  peaks. Named in Tibetan, and in Latin letters, following the same Labels
+  toggle as the towns. Drawn only where they run through the three regions. Off
+  by default; the regions come first and the physical layer is context you opt
+  into. One *Physical* button cycles Off → Rivers → Ranges → Both.
 - **Towns, world locator inset and dark/light themes**, each toggleable.
 - **Zoom and pan** — a `+` / slider / `−` control at the map's corner, drag to
   pan, pinch on a touch screen, double-click, `Ctrl`/`⌘` and the wheel, or the
