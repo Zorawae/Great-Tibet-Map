@@ -193,10 +193,12 @@ rather than quoted numbers.
 
 - **Ü-Tsang** — Lhasa, Shigatse, Nyingtri, Lhoka, Nagchu, Ngari, plus the
   Gdang La(གདང་ལ་)/Changthang exclave administered from Na-gor-mo(ན་གོར་མོ་).
-- **Kham** — Chamdo, Garzê, Yushu, Dêqên, Muli(རྨི་ལི་), and the Gyalrong counties of
-  Ngawa (Barkham, Chuchen, Tsanlha, Lithang, Trochu(ཁྲོ་ཆུ་), Dukezong Ancient City, Shangri-La(རྒྱལ་ཐང་རྫོང་རྡོ་མཁར་གནའ་རྫོང་), Lunggu(ལུང་དགུ་)).
-- **Amdo** — Tso Ngön (མཚོ་སྔོན་) - (tsoshar(མཚོ་ཤར་), Tsojang(མཚོ་བྱང་), Malho(རྨ་ལྷོ་), Tsolho(མཚོ་ལྷོ་), Golog(མགོ་ལོག), Tsonub(མཚོ་ནུབ་), Kanlho(ཀན་ལྷོ་), and
-  northern Ngawa (Ngawa, Dzoge, Marthang, Dzamthang, Zungchu, Zitsa Degu).
+- **Kham** — Chamdo, Garzê, Yushu, Dêqên, Muli(རྨི་ལི་), and the Gyalrong counties
+  of Ngawa (Barkham, Chuchen, Tsanlha, Li, Trochu(ཁྲོ་ཆུ་), Mowun, Lunggu(ལུང་དགུ་)).
+- **Amdo** — the Tso Ngön(མཚོ་སྔོན་) prefectures: Ziling(ཟི་ལིང་།), Tsoshar(མཚོ་ཤར་),
+  Tsojang(མཚོ་བྱང་), Malho(རྨ་ལྷོ་), Tsolho(མཚོ་ལྷོ་), Golog(མགོ་ལོག), Tsonub(མཚོ་ནུབ་); plus
+  Kanlho(ཀན་ལྷོ་) in Gansu, and northern Ngawa (Ngawa, Dzoge, Marthang, Dzamthang,
+  Zungchu, Zitsa Degu).
 
 **Internationally recognised boundaries only.** Every region is clipped against
 the boundaries of India, Nepal, Bhutan, Bangladesh and Myanmar, so nothing
