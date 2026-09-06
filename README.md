@@ -191,6 +191,36 @@ shapes actually shown, not numbers quoted from elsewhere:
 | Amdo | 576,079 km² | 26.3% |
 | **Combined** | **2,191,227 km²** | |
 
+Each region is the union of these present-day units:
+
+- **Ü-Tsang** — Lhasa, Shigatse, Nyingtri, Lhoka, Nagchu, Ngari, plus the
+  Gdang La(གདང་ལ་)/Changthang exclave administered from Na-gor-mo(ན་གོར་མོ་).
+- **Kham** — Chamdo, Garzê, Yushu, Dêqên, Muli(རྨི་ལི་), and the Gyalrong counties
+  of Ngawa (Barkham, Chuchen, Tsanlha, Li, Trochu(ཁྲོ་ཆུ་), Mowun, Lunggu(ལུང་དགུ་)).
+- **Amdo** — the Tso Ngön(མཚོ་སྔོན་) prefectures: Ziling(ཟི་ལིང་།), Tsoshar(མཚོ་ཤར་),
+  Tsojang(མཚོ་བྱང་), Malho(རྨ་ལྷོ་), Tsolho(མཚོ་ལྷོ་), Golog(མགོ་ལོག), Tsonub(མཚོ་ནུབ་); plus
+  Kanlho(ཀན་ལྷོ་) in Gansu, and northern Ngawa (Ngawa, Dzoge, Marthang, Dzamthang,
+  Zungchu, Zitsa Degu).
+
+**Editor's note on the names.** Places are named in the form the map itself
+uses, with the Tibetan in brackets wherever an established Tibetan name
+exists. Three conventions keep the lists from drifting:
+
+- The bracket after Ngawa lists that prefecture's **Gyalrong counties** and
+  nothing else. A place inside a prefecture already named on the same line is
+  covered by it and is not repeated — Lithang sits in Garzê, Gyalthang
+  (Shangri-La) in Dêqên — and a town or a walled quarter is not an entry
+  alongside a county.
+- The units are **prefecture-level** unless a line says otherwise. Tso Ngön is
+  the province, so it heads the prefectures that belong to it rather than
+  standing beside them, and Kanlho, which is in Gansu, falls outside that group.
+- **Yushu appears under Kham, not Amdo.** It is one of Qinghai's eight
+  prefectures, which is why the Tso Ngön list has seven.
+
+Romanisation is not standardised: the same name may be spelled one way in the
+prose here and another in the widget's own data. The Tibetan is what binds them,
+so where the two disagree the Tibetan is the name that counts.
+
 **Checked against the CTA's own map.** The Central Tibetan Administration
 publishes [a map of Tibet under the PRC](https://tibet.net/about-tibet/map-of-tibet/)
 whose silhouette is the TAR, plus Qinghai, plus the Tibetan prefectures of
@@ -214,15 +244,6 @@ historical limits were never surveyed, they shifted over time, and different
 sources draw them differently — especially along the Gyalrong, Kongpo and
 Kokonor margins. Treat the lines as indicative; the *Current borders* toggle
 overlays today's boundaries so a reader can compare.
-
-**Editor's note on the names.** Where a place has an established Tibetan name it
-is given beside the Latin one, and the prefecture and county lists in
-[INTEGRATION.md](INTEGRATION.md) follow two rules: a place is named once, under
-the prefecture that contains it, so a town is not repeated next to the
-prefecture it sits in; and the entries are prefecture-level, so Tso Ngön
-(Qinghai) heads the prefectures inside it rather than standing beside them.
-Romanisation is not standardised — where a spelling here differs from the
-widget's data, the Tibetan is the name that counts.
 
 **Map scope and context.** This map is intended to show how the historical
 Tibetan territorial divisions correspond to, or overlap with, present-day Chinese
