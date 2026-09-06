@@ -193,10 +193,32 @@ rather than quoted numbers.
 
 - **Ü-Tsang** — Lhasa, Shigatse, Nyingtri, Lhoka, Nagchu, Ngari, plus the
   Gdang La(གདང་ལ་)/Changthang exclave administered from Na-gor-mo(ན་གོར་མོ་).
-- **Kham** — Chamdo, Garzê, Yushu, Dêqên, Muli(རྨི་ལི་), and the Gyalrong counties of
-  Ngawa (Barkham, Chuchen, Tsanlha, Lithang, Trochu(ཁྲོ་ཆུ་), Dukezong Ancient City, Shangri-La(རྒྱལ་ཐང་རྫོང་རྡོ་མཁར་གནའ་རྫོང་), Lunggu(ལུང་དགུ་)).
-- **Amdo** — Tso Ngön (མཚོ་སྔོན་) - (tsoshar(མཚོ་ཤར་), Tsojang(མཚོ་བྱང་), Malho(རྨ་ལྷོ་), Tsolho(མཚོ་ལྷོ་), Golog(མགོ་ལོག), Tsonub(མཚོ་ནུབ་), Kanlho(ཀན་ལྷོ་), and
-  northern Ngawa (Ngawa, Dzoge, Marthang, Dzamthang, Zungchu, Zitsa Degu).
+- **Kham** — Chamdo, Garzê, Yushu, Dêqên, Muli(རྨི་ལི་), and the Gyalrong counties
+  of Ngawa (Barkham, Chuchen, Tsanlha, Li, Trochu(ཁྲོ་ཆུ་), Mowun, Lunggu(ལུང་དགུ་)).
+- **Amdo** — the Tso Ngön(མཚོ་སྔོན་) prefectures: Ziling(ཟི་ལིང་།), Tsoshar(མཚོ་ཤར་),
+  Tsojang(མཚོ་བྱང་), Malho(རྨ་ལྷོ་), Tsolho(མཚོ་ལྷོ་), Golog(མགོ་ལོག), Tsonub(མཚོ་ནུབ་); plus
+  Kanlho(ཀན་ལྷོ་) in Gansu, and northern Ngawa (Ngawa, Dzoge, Marthang, Dzamthang,
+  Zungchu, Zitsa Degu).
+
+**Editor's note on the names above.** Places are named in the form the map
+itself uses, with the Tibetan in brackets wherever an established Tibetan name
+exists. Three conventions keep the lists from drifting, and each has already
+been mistaken once:
+
+- The bracket after Ngawa lists that prefecture's **Gyalrong counties** and
+  nothing else. A place inside a prefecture already named on the same line is
+  covered by it and is not repeated — Lithang sits in Garzê, Gyalthang
+  (Shangri-La) in Dêqên — and a town or a walled quarter is not an entry
+  alongside a county.
+- The units are **prefecture-level** unless a line says otherwise. Tso Ngön is
+  the province, so it heads the prefectures that belong to it rather than
+  standing beside them, and Kanlho, which is in Gansu, falls outside that group.
+- **Yushu appears under Kham, not Amdo.** It is one of Qinghai's eight
+  prefectures, which is why the Tso Ngön list has seven.
+
+Romanisation is not standardised here: the same name may be spelled one way in
+this file and another in the widget's data. The Tibetan is what binds them, so
+where the two disagree the Tibetan is the name that counts.
 
 **Internationally recognised boundaries only.** Every region is clipped against
 the boundaries of India, Nepal, Bhutan, Bangladesh and Myanmar, so nothing

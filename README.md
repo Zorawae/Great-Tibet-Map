@@ -215,6 +215,15 @@ sources draw them differently — especially along the Gyalrong, Kongpo and
 Kokonor margins. Treat the lines as indicative; the *Current borders* toggle
 overlays today's boundaries so a reader can compare.
 
+**Editor's note on the names.** Where a place has an established Tibetan name it
+is given beside the Latin one, and the prefecture and county lists in
+[INTEGRATION.md](INTEGRATION.md) follow two rules: a place is named once, under
+the prefecture that contains it, so a town is not repeated next to the
+prefecture it sits in; and the entries are prefecture-level, so Tso Ngön
+(Qinghai) heads the prefectures inside it rather than standing beside them.
+Romanisation is not standardised — where a spelling here differs from the
+widget's data, the Tibetan is the name that counts.
+
 **Map scope and context.** This map is intended to show how the historical
 Tibetan territorial divisions correspond to, or overlap with, present-day Chinese
 administrative divisions. It illustrates the traditional territorial divisions of
