@@ -354,6 +354,27 @@ PEAK_RANGES = [
         (92.50, 30.60),   # anchor
         (94.30, 30.20),   # anchor
         (95.00, 29.80)]), # Gyala Peri       7294 m
+    # Natural Earth has no polygon for the Tanggula and only one named summit on
+    # it, so this crest is Geladandong with anchors either side of it, the way
+    # the Gangdise and the Nyenchen Tanglha are already built. It follows the
+    # Qinghai/TAR border and the Drichu-Ngulchu divide, west to east.
+    ('གདང་ལ་', 'Gdang La', 0.42, -10, [
+        (89.80, 33.60),   # anchor, off the Changthang
+        (91.08, 33.42),   # Geladandong     6621 m
+        (92.50, 33.00),   # anchor, by the Tanggula pass
+        (94.00, 32.80),   # anchor
+        (95.50, 32.60),   # anchor
+        (96.80, 32.40)]), # anchor, running into the Kham ranges
+    # Centreline of Natural Earth's QUILIAN MOUNTAINS polygon, sliced by
+    # longitude and smoothed -- the same construction as the Kunlun. It is a
+    # check as well as a source: Kangze'gyai, the range's high point at
+    # 97.716E 38.515N, sits 0.02 degrees off the line, which is under a
+    # thousandth of the range's length.
+    ('མདོ་ལ་རིང་མོ་', 'Dhola Ringmo', 0.60, -10, [
+        (94.35, 39.18), (95.06, 39.13), (95.78, 38.90), (96.50, 38.81),
+        (97.22, 38.70), (97.93, 38.43), (98.65, 38.38), (99.37, 38.03),
+        (100.09, 38.02), (100.81, 37.32), (101.52, 37.22), (102.24, 37.16),
+        (102.96, 37.32)]),
 ]
 
 # Four of the gang are simply the ridge between two rivers, so their spines are
