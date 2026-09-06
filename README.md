@@ -133,7 +133,7 @@ Set these on the container div. They can also be changed at runtime.
      data-admin="false"       <!-- true shows current provincial borders -->
      data-cities="true"       <!-- true | false -->
      data-inset="true"        <!-- world locator box -->
-     data-rivers="false"      <!-- true draws the rivers and lakes -->
+     data-rivers="false"      <!-- true draws the rivers, lakes and their names -->
      data-ranges="false"      <!-- true draws the ranges and peaks -->
                               <!-- the two stay independent; the Physical
                                    button cycles through their four combos -->

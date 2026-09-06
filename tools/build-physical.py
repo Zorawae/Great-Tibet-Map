@@ -17,7 +17,7 @@ compatible with the project's CC0 dedication.  Download beside this script:
 
 Usage:  python3 tools/build-physical.py  >  physical.json
 """
-import json, math, os, re, sys
+import heapq, json, math, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WIDGET = os.path.join(HERE, os.pardir, 'tibet-three-regions-map.html')
@@ -129,25 +129,27 @@ def clip_runs(pts, box):
 #
 #     strategy(geometry, metrics=None, ...) -> [{p, a, quality, inside}, ...]
 #
-#   p        the anchor point, in the viewBox's units
-#   a        the tangent there in degrees, clamped to +-MAX_TILT so it reads
-#   quality  0..1, how good the anchor is on its own terms, before anything
-#            else competes with it for the space
-#   inside   whether it falls in the core of the frame rather than against an
-#            edge
+#   p         the anchor point, in the viewBox's units
+#   a         the tangent there in degrees, clamped to +-MAX_TILT so it reads
+#   quality   0..1, how good the anchor is on its own terms, before anything
+#             else competes with it for the space
+#   inside    whether the anchor sits within the feature's own drawn extent --
+#             which is what decides whether the name may sit on the feature or
+#             must be placed beside it with a connector
+#   in_frame  whether it falls in the core of the frame rather than against an
+#             edge
 #
 # A strategy returns a scored *set*, not a point.  A long river has several
 # honest places to carry its name, and settling on one before knowing what else
 # wants that space throws away the freedom the search needs.
 #
 # `metrics` is the label's measured box, {'w','h'}, from tools/measure-labels.py.
-# It is what makes "straight enough" answerable -- straight over the span the
-# name actually covers -- and without it that term is undefined and drops out.
+# It is what makes "straight enough" and "does it fit" answerable, and where it
+# is not given those terms are undefined and drop out.
 #
 # Nothing reads `quality` yet: tools/place-labels.py still ranks candidates by
-# its own cost function.  Introducing the interface is deliberately a port and
-# not a change of behaviour -- the anchors, and the numbers chosen from them,
-# are the ones already shipped.
+# its own cost function.  `inside` is read, by the lakes: it is what says their
+# names cannot sit on them.
 
 CORE = (120.0, 60.0, 1060.0, 700.0)      # the frame, less its margins
 
@@ -198,11 +200,16 @@ def _straightness(run, seg, dist, span):
     return min(1.0, math.hypot(pb[0][0] - pa[0][0], pb[0][1] - pa[0][1]) / arc)
 
 
-def line_anchors(runs, metrics=None, fracs=(0.45,), core=CORE):
+def line_anchors(runs, metrics=None, fracs=(0.45,), drawn=None, core=CORE):
     """Anchors along a line: rivers, range crests, and whatever else is drawn as
     a course.  The name sits on its own line, a fraction of the way along it,
     set at the tangent there.  The run chosen is the longest one that reaches
-    the core of the frame, so a name does not end up jammed against an edge."""
+    the core of the frame, so a name does not end up jammed against an edge.
+
+    `drawn` is the part of the geometry the map actually puts on screen, where
+    that is not all of `runs`.  The Karakoram's crest clips away to nothing and
+    its name hangs off a spine the reader cannot see; passing the clipped runs
+    is what lets `inside` say so."""
     if not runs:
         return []
     inner = [r for r in runs if any(in_core(p[0], p[1], core) for p in r)] or runs
@@ -220,35 +227,134 @@ def line_anchors(runs, metrics=None, fracs=(0.45,), core=CORE):
         (x, y), ang = got
         # Quality is how straight the crest is under the name, times how far the
         # anchor keeps from either end of the run -- a name that runs off the
-        # end of its own line is attached to nothing at half its length.  Being
-        # in the frame's core is reported separately, as `inside`, so the two
-        # signals stay separable once the solver starts reading them.
+        # end of its own line is attached to nothing at half its length.
         ends = min(frac, 1.0 - frac) * 2.0
         out.append({'p': [round(x, 1), round(y, 1)], 'a': round(ang, 1),
                     'quality': round(_straightness(run, seg, total * frac, span)
                                      * max(0.0, min(1.0, ends)), 3),
-                    'inside': in_core(x, y, core), 'frac': frac})
+                    'inside': True if drawn is None
+                              else bool(drawn) and dist_to_runs(drawn, x, y) <= 0.6,
+                    'in_frame': in_core(x, y, core), 'frac': frac})
     return out
 
 
 def point_anchors(p, metrics=None, core=CORE):
     """A point feature's anchor is its coordinate: peaks, towns, and anything
     else the map draws as a dot.  There is nothing to choose, so quality is 1.0
-    by definition; which way round the dot the name goes is an offset, not an
-    anchor, and belongs to the type."""
+    by definition, and a point is its own whole extent, so `inside` is true;
+    which way round the dot the name goes is an offset, not an anchor, and
+    belongs to the type."""
     x, y = p
     return [{'p': [round(x, 1), round(y, 1)], 'a': 0.0, 'quality': 1.0,
-             'inside': in_core(x, y, core)}]
+             'inside': True, 'in_frame': in_core(x, y, core)}]
+
+
+def _ring_area(ring):
+    s = 0.0
+    for i in range(len(ring)):
+        x1, y1 = ring[i]
+        x2, y2 = ring[(i + 1) % len(ring)]
+        s += x1 * y2 - x2 * y1
+    return abs(s) / 2.0
+
+
+def _pole(rings, precision=0.2):
+    """The interior point furthest from any edge, and how far that is: quadtree
+    subdivision, best-first, stopping when no unexplored cell could beat the
+    best by more than `precision`.
+
+    Never the centroid, for any shape.  The centroid of a crescent lies in its
+    bay and the centroid of a ring lies in its hole; Yamdrok is dendritic
+    enough that its own falls on dry land between two arms.  The pole answers
+    the question a map actually asks -- where is the roomiest interior point --
+    and the radius it comes with is exactly what says whether a name fits."""
+    xs = [p[0] for r in rings for p in r]
+    ys = [p[1] for r in rings for p in r]
+    x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
+    cell = min(x1 - x0, y1 - y0)
+    if cell <= 0:
+        return (x0, y0), 0.0
+
+    def depth(x, y):
+        """Distance to the nearest edge, negative outside the shape."""
+        d = dist_to_runs([r + r[:1] for r in rings], x, y)
+        return d if inside(rings, x, y) else -d
+
+    q, h = [], cell / 2.0
+    def offer(cx, cy, half):
+        d = depth(cx, cy)
+        heapq.heappush(q, (-(d + half * math.sqrt(2)), d, cx, cy, half))
+    x = x0
+    while x < x1:
+        y = y0
+        while y < y1:
+            offer(x + h, y + h, h)
+            y += cell
+        x += cell
+    best = (depth((x0 + x1) / 2, (y0 + y1) / 2), (x0 + x1) / 2, (y0 + y1) / 2)
+    while q:
+        bound, d, cx, cy, half = heapq.heappop(q)
+        if d > best[0]:
+            best = (d, cx, cy)
+        if -bound - best[0] <= precision:
+            continue
+        half /= 2.0
+        for sx in (-half, half):
+            for sy in (-half, half):
+                offer(cx + sx, cy + sy, half)
+    return (best[1], best[2]), max(0.0, best[0])
+
+
+def polygon_anchors(rings, metrics=None, core=CORE):
+    """The anchor for an area: lakes, and whatever else is drawn as a shape.
+    It is the pole of inaccessibility of the largest part -- a shape in several
+    pieces carries its name on the biggest one -- and the name is set level,
+    since an area has no tangent to follow.
+
+    `inside` is whether the shape can hold the name at all: whether the whole of
+    the label's box fits in the inscribed circle at the pole, which is its half
+    diagonal against the radius.  The spec asks for half the label's *height*,
+    and that is wrong by exactly the width of the name: Tso Ngonpo's circle is
+    8.9 units and half its type is 8.2, so a half-height test says an
+    eighty-two unit name fits a lake thirty-one units across.  A name is a box,
+    and the box is what has to fit.
+
+    Not one of the five lakes here can hold its name, by either test once the
+    width is counted.  So these names sit beside their water with a connector
+    rather than on it, and `inside` is what says so.
+
+    Without `metrics` there is no box, so the question is undefined and the
+    answer is None rather than a guess either way."""
+    if not rings:
+        return []
+    ring = max(rings, key=_ring_area)
+    (x, y), r = _pole([ring])
+    half = math.hypot(metrics['w'], metrics['h']) / 2.0 if metrics else 0.0
+    return [{'p': [round(x, 1), round(y, 1)], 'a': 0.0,
+             'quality': round(min(1.0, r / half), 3) if half else 1.0,
+             'inside': (r >= half) if half else None,
+             'in_frame': in_core(x, y, core), 'radius': round(r, 1)}]
 
 
 # Which strategy labels each kind of feature.  A new kind is a row here, and one
-# more function above only if its geometry is a shape neither of these describes
-# -- a lake is a polygon and has neither a course nor a single coordinate, which
-# is why the five of them still carry no name.
+# more function above only if its geometry is a shape none of these describes.
 ANCHOR_STRATEGIES = {
     'river': line_anchors,
     'range': line_anchors,
     'peak': point_anchors,
+    'lake': polygon_anchors,
+}
+
+
+# Whether a name may sit ON the thing it names.  An area may: a lake's name
+# belongs in the middle of its water when the water is big enough to hold it.
+# A course may not -- a name laid along its own river hides the line it names --
+# and a point has no room to hold anything, so both are placed off their anchor.
+ON_FEATURE = {
+    'river': False,
+    'range': False,
+    'peak': False,
+    'lake': True,
 }
 
 
@@ -402,7 +508,7 @@ def has_tick(dy, h=LINE_H, gap=LEAD_GAP):
     return (dy - 0.8 * h - gap > 0) if dy > 0 else (dy + 0.2 * h + gap < 0)
 
 
-def mark_connectors(feats):
+def mark_connectors(feats, rivals=()):
     """Decide which names get a connector, and record it in DATA.
 
     The test is a ratio, not a distance.  A name 30 units off its crest with
@@ -412,18 +518,47 @@ def mark_connectors(feats):
     name is connected when the nearest foreign feature is less than AMBIGUOUS
     times its own feature's distance away.
 
-    Foreign means the other named linear features.  Lakes are drawn but carry
-    no name yet, and a peak is a point with its own rule, so neither competes
-    for ownership of a range or river name.
+    Foreign means every other named feature that could be read as the owner of
+    this name: the other lines, and the lakes in `rivals`, which are named now
+    and so can be mistaken for the owner of a name lying near their shore.  A
+    peak keeps its own rule, and a lake's own name is answered by
+    mark_lake_connectors() below, which asks a plainer question than a ratio.
     """
     for f in feats:
         cx, cy = label_centre(f['lab'], f['dy'])
         own = dist_to_runs(f['runs'], cx, cy)
         foreign = min([dist_to_runs(g['runs'], cx, cy) for g in feats if g is not f]
+                      + [dist_to_runs([r + r[:1] for r in g['runs']], cx, cy)
+                         for g in rivals]
                       or [float('inf')])
         f['ratio'] = foreign / own if own > 1e-9 else float('inf')
         if f['ratio'] < AMBIGUOUS and has_tick(f['dy']):
             f['item']['lead'] = 1
+
+
+def lake_label_centre(item, h=LINE_H):
+    """Where a lake's name actually sits: the anchor in the water, plus the
+    offset that carries the name out of it, less the same baseline-to-centre
+    rise the linear labels use."""
+    return item['lab']['p'][0] + item['ldx'], item['lab']['p'][1] + item['ldy'] - h * 0.30
+
+
+def mark_lake_connectors(feats):
+    """Tie a lake's name to its water when the name is not on it.
+
+    An area's name belongs in the middle of the shape, and where it sits there
+    nothing has to be drawn to say whose it is.  None of these five fit -- see
+    the note on LAKES -- so each name stands beside its water, and out there the
+    tie is not a matter of degree: without it the reader has a name adrift
+    between two or three lakes and a river.  So the question is not a ratio but
+    a plain one, whether the name still falls on the water it names.
+    """
+    for f in feats:
+        it = f['item']
+        if not it.get('lab'):
+            continue
+        if not inside(f['runs'], *lake_label_centre(it)):
+            it['lead'] = 1
 
 
 def check_labels(out):
@@ -454,6 +589,39 @@ def check_labels(out):
             if it.get('lead') and not has_tick(it['dy']):
                 bad.append('%s %s: marked for a connector with no room to draw one'
                            % (kind, it['en']))
+    for l in out['lakes']:
+        if not l.get('lab'):
+            bad.append('lake %s: no anchor at all' % l['en'])
+            continue
+        off = math.hypot(l['ldx'], l['ldy'])
+        if off > OFFSET_CAP:
+            bad.append('lake %s: name sits %.1f from its water, past the %g cap'
+                       % (l['en'], off, OFFSET_CAP))
+        # The anchor of an area is a point IN it, not merely near it: it is what
+        # a connector is drawn from, and a point outside the water would have
+        # the tie start in the wrong lake.
+        rings = rings_of(l['d'])
+        if not inside(rings, *l['lab']['p']):
+            bad.append('lake %s: anchor is not inside the water it names' % l['en'])
+        on_water = inside(rings, *lake_label_centre(l))
+        if on_water and l.get('lead'):
+            bad.append('lake %s: marked for a connector while sitting on its own water'
+                       % l['en'])
+        if not on_water and not l.get('lead'):
+            bad.append('lake %s: name is off its water with nothing tying it there'
+                       % l['en'])
+        # A name centred on its water needs water that can hold it.  The build
+        # has no measured type -- that is in tools/measured.json, which belongs
+        # to the placer -- but it has the line height, and a circle too small
+        # for the type's height is certainly too small for the name.  It is a
+        # weaker test than the placer's, and it is the one that catches an
+        # offset of zero typed into the table by hand.
+        got = polygon_anchors(rings)
+        lines = 2 if l['bo'] else 1
+        if on_water and got and got[0]['radius'] < lines * LINE_H / 2.0:
+            bad.append('lake %s: name sits on water too small to hold it -- the '
+                       'roomiest circle in it is %.1f against %.1f of type'
+                       % (l['en'], got[0]['radius'], lines * LINE_H / 2.0))
     for k in out['peaks']:
         off = math.hypot(k['ldx'], k['ldy'])
         if off > OFFSET_CAP:
@@ -502,13 +670,13 @@ def to_path(runs, closed=False):
 # carry (Brahmaputra, Mekong, Yangtze ...) are not shown on the map.  The last
 # two numbers are where the label sits along the course and how far off it.
 RIVERS = [
-    ('ཡར་ཀླུང་གཙང་པོ་', 'Yarlung Tsangpo', ['Maquan', 'Yarlung', 'Dihang', 'Brahmaputra'], 1, 0.78, 11),
+    ('ཡར་ཀླུང་གཙང་པོ་', 'Yarlung Tsangpo', ['Maquan', 'Yarlung', 'Dihang', 'Brahmaputra'], 1, 0.82, 8),
     ('རྨ་ཆུ་',           'Ma Chu',          ['Huang'],                                     1, 0.50, 8),
     ('འབྲི་ཆུ་',          'Drichu',          ['Tuotuo', 'Tongtian', 'Jinsha', 'Chang Jiang'],1, 0.08, 8),
-    ('རྫ་ཆུ་',           'Za Qu',           ['Za', 'Lancang', 'Mekong'],                   1, 0.88, 8),
+    ('རྫ་ཆུ་',           'Za Qu',           ['Za', 'Lancang', 'Mekong'],                   1, 0.84, 8),
     ('རྒྱ་མོ་རྔུལ་ཆུ་',    'Gyalmo Ngulchu',  ['Nu', 'Salween'],                             1, 0.48, -10),
     ('སེང་གེ་ཁ་འབབ་',    'Sangge Khabab',   ['Shiquan', 'Indus'],                          1, 0.84, -19),
-    ('གླང་ཆེན་ཁ་འབབ་',   'Langchen Khabab', ['Sutlej'],                                    0, 0.22, -10),
+    ('གླང་ཆེན་ཁ་འབབ་',   'Langchen Khabab', ['Sutlej'],                                    0, 0.22, -13),
     # Macha Khabab is left out: Natural Earth's Ghaghara segment begins at the
     # border, so only about 15 px of it falls inside Tibet -- too little to read
     # as a river, while its name crowded the corner where the Sengge and Langchen
@@ -516,12 +684,23 @@ RIVERS = [
     # Tibetan headwater turns up.
 ]
 
+# The lakes, shaped like every other feature class now that they carry names:
+# the Tibetan, the name the map draws in Latin letters, Natural Earth's own key
+# for the water, and the offset chosen by tools/place-labels.py.  The
+# international names -- Qinghai Lake, Nam Co, Siling Co, Yamdrok, Manasarovar
+# -- are not drawn, the same way the rivers' Brahmaputra and Mekong are not.
+#
+# Not one of the five is big enough on this map to hold its own name: Tso
+# Ngonpo is much the largest and the roomiest circle inside it is 8.9 units
+# across the radius, against a name some seventy units wide.  So these names sit
+# beside their water with a connector rather than on it, which is the offset
+# being searched here at all.
 LAKES = [
-    ('Tso Ngonpo',   'Qinghai Lake', 'Qinghai Hu'),
-    ('Namtso',       'Nam Co',       'Nam Co'),
-    ('Siling Tso',   'Siling Co',    'Siling Co'),
-    ('Yamdrok Tso',  'Yamdrok',      'Yamzho Yumco'),
-    ('Mapham Yutso', 'Manasarovar',  'Mapam Yumco'),
+    ('',  'Tso Ngonpo',   'Qinghai Hu',   0, 14),
+    ('',  'Namtso',       'Nam Co',       0, 14),
+    ('',  'Siling Tso',   'Siling Co',    0, 14),
+    ('',  'Yamdrok Tso',  'Yamzho Yumco', 0, 20),
+    ('',  'Mapham Yutso', 'Mapam Yumco',  0, 14),
 ]
 
 # Range spines, west to east (or north to south).  The number after the name is
@@ -610,11 +789,11 @@ PEAK_RANGES = [
 GANG_BETWEEN = [
     ('དུལ་དབང་ཟལ་མོ་སྒང་', 'Duldza Zalmo Gang', 0.04, -16, 'Drichu',         'Za Qu',  (31.8, 33.6)),
     ('མར་རྫ་སྒང་', 'Mardza Gang',          0.50, 8, 'Ma Chu',         'Drichu', (32.0, 33.4)),
-    ('ཚ་བ་སྒང་', 'Tshawa Gang',       0.76, 8, 'Gyalmo Ngulchu', 'Za Qu',  (28.2, 30.6)),
+    ('ཚ་བ་སྒང་', 'Tshawa Gang',       0.72, 8, 'Gyalmo Ngulchu', 'Za Qu',  (28.2, 30.6)),
     ('རྨར་ཁམས་སྒང་', 'Markham Gang',      0.50, 8, 'Za Qu',          'Drichu', (28.2, 30.6)),
 ]
 GANG_ANCHORED = [
-    ('པོ་བར་སྒང་', 'Pobar Gang', 0.36, 8, [
+    ('པོ་བར་སྒང་', 'Pobar Gang', 0.46, 8, [
         (94.40, 30.30), (95.30, 30.00), (96.20, 29.90), (97.00, 30.00)]),
     ('མི་ཉག་སྒང་', 'Minyag Gang', 0.68, 11, [
         (100.60, 30.80),
@@ -630,7 +809,7 @@ GANG_ANCHORED = [
 # tools/place-labels.py; the last two numbers are the offset it chose.
 PEAKS = [
     ('ཇོ་མོ་གླང་མ་', 'Chomo lungma', 86.925, 27.988, 10, -10),
-    ('གངས་རིན་པོ་ཆེ་', 'Gang Rinpoche', 81.312, 31.067, 0, 14),
+    ('གངས་རིན་པོ་ཆེ་', 'Gang Rinpoche', 81.312, 31.067, -14, 6),
     ('', 'Namcha Barwa', 95.055, 29.628, 0, 14),
     ('', 'Amnye Machen', 99.478, 34.828, 0, -14),
 ]
@@ -660,6 +839,9 @@ def main():
     # Every named line, with the geometry the map actually draws for it, so the
     # connector test below can ask how near each name is to somebody else's.
     linear = []
+    # The named areas, kept the same way, for the rule that ties a name to water
+    # it cannot sit on.
+    areal = []
 
     for bo, en, names, main_stem, frac, dy in RIVERS:
         runs = []
@@ -679,7 +861,7 @@ def main():
             if item['lab']:
                 linear.append({'item': item, 'lab': item['lab'], 'dy': dy, 'runs': runs})
 
-    for bo, en, ne_name in LAKES:
+    for bo, en, ne_name, ldx, ldy in LAKES:
         runs = []
         for feat in lakes_src['features']:
             if feat['properties'].get('name') != ne_name:
@@ -692,7 +874,13 @@ def main():
                     continue
                 runs.append(simplify(pts, TOL_LAKE))
         if runs:
-            out['lakes'].append({'bo': bo, 'en': en, 'd': to_path(runs, closed=True)})
+            got = anchors('lake', runs)
+            item = {'bo': bo, 'en': en, 'd': to_path(runs, closed=True),
+                    'ldx': ldx, 'ldy': ldy}
+            if got:
+                item['lab'] = {'p': got[0]['p']}
+            out['lakes'].append(item)
+            areal.append({'item': item, 'runs': runs})
 
     for bo, name, frac, dy, spine in build_ranges(rivers_src):
         pts = simplify([project(lo, la) for lo, la in spine], TOL_RANGE)
@@ -728,7 +916,8 @@ def main():
         out['peaks'].append({'bo': bo, 'en': en, 'p': anchors('peak', (x, y))[0]['p'],
                              'ldx': ldx, 'ldy': ldy})
 
-    mark_connectors(linear)
+    mark_connectors(linear, areal)
+    mark_lake_connectors(areal)
     check_labels(out)
     for f in sorted(linear, key=lambda f: f['ratio']):
         sys.stderr.write('  %-20s ratio %6.2f  %s\n'

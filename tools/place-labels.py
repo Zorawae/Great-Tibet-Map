@@ -102,12 +102,14 @@ FEATURES = ([(g['en'], 'range',
              or [r for r in bp.rings_of(g.get('dFull', '')) if len(r) > 1])
             for g in DATA['ranges']] +
             [(r['en'], 'river', bp.rings_of(r['d'])) for r in DATA['rivers']] +
+            [(l['en'], 'lake', bp.rings_of(l['d'])) for l in DATA['lakes']] +
             [(k['en'], 'peak', [[tuple(k['p'])]]) for k in DATA['peaks']])
 
-# A peak is a point, so its name is tried on a ring of positions round the
-# marker rather than slid along a line.  This is what moves Chomolungma off
-# the Himalayan crest, which its fixed "below the marker" position sat on.
-PEAK_SPOTS = [(dx, dy) for r in (14, 24, 38, 54)
+# A name that is not slid along a line is tried on a ring of positions round its
+# anchor instead: a peak, which is a point, and a lake too small to hold its own
+# name, which is every lake on this map.  This is what moves Chomolungma off the
+# Himalayan crest, which its fixed "below the marker" position sat on.
+RING_SPOTS = [(dx, dy) for r in (14, 20, 24, 38, 54)
               for dx, dy in ((0, r), (0, -r), (r, 6), (-r, 6),
                              (r * 0.7, -r * 0.7), (-r * 0.7, -r * 0.7),
                              (r * 0.7, r * 0.7), (-r * 0.7, r * 0.7))
@@ -120,9 +122,16 @@ def place_one(name, kind, runs, others):
     # file's: bp.anchors() returns the set of honest anchors for the kind of
     # thing this feature is.  What is searched here is the offset -- how far
     # off the anchor the type sits, and which way round.
-    if kind == 'peak':
-        (px, py), = [a['p'] for a in bp.anchors(kind, runs[0][0], SIZE[name])]
-        cands = [({'p': (px + dx, py + dy), 'a': 0.0}, 0, (dx, dy)) for dx, dy in PEAK_SPOTS]
+    if kind in ('peak', 'lake'):
+        anchor, = bp.anchors(kind, runs[0][0] if kind == 'peak' else runs, SIZE[name])
+        px, py = anchor['p']
+        # A name its own shape can hold sits in the middle of it and goes
+        # nowhere; everything else goes round the outside on the ring.  Whether
+        # a name may sit on its feature at all is bp.ON_FEATURE, and whether
+        # this one actually fits is the strategy's `inside`.  A lake that fits
+        # would be the most constrained label on the map: exactly one position.
+        spots = [(0, 0)] if bp.ON_FEATURE[kind] and anchor['inside'] else RING_SPOTS
+        cands = [({'p': (px + dx, py + dy), 'a': 0.0}, 0, (dx, dy)) for dx, dy in spots]
     else:
         aset = bp.anchors(kind, [r for r in runs if len(r) > 1], SIZE[name], fracs=FRACS)
         cands = [(a, dy, (a['frac'], dy)) for dy in DYS for a in aset]
@@ -138,8 +147,8 @@ def place_one(name, kind, runs, others):
                 cost += 4000
             if name in GANG and not bp.inside(KHAM, cx, cy):
                 cost += 150
-            if kind == 'peak':
-                cost += (abs(key[0]) + abs(key[1])) * 1.2   # prefer close to the marker
+            if kind in ('peak', 'lake'):
+                cost += (abs(key[0]) + abs(key[1])) * 1.2   # prefer close to the feature
             else:
                 # gentle: clearing a real overlap must beat hugging the crest
                 cost += abs(key[0] - 0.5) * 6 + abs(abs(dy) - 9) * 0.7
@@ -192,7 +201,7 @@ for name, kind, runs in order:
     hits = [o['t'][:16] for o, q, wt in OB if overlap(Q, q) > 0] + \
            [m for m in boxes if m != name and overlap(Q, boxes[m]) > 0]
     print('  %-20s %-6s %-18s overlap %6.1f  %s'
-          % (name, kind, ('dx %+d dy %+d' % key) if kind == 'peak'
+          % (name, kind, ('dx %+d dy %+d' % key) if kind in ('peak', 'lake')
              else ('frac %.2f dy %+d' % key), r,
              ('hits: ' + ', '.join(hits)) if hits else 'clear'))
 print('\n  total residual overlap: %.1f'% total)

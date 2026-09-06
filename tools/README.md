@@ -48,19 +48,48 @@ what else wants that space throws away the freedom the search needs.
 `line_anchors()` serves rivers and range crests -- a point along the course, set
 at the tangent there. `point_anchors()` serves peaks -- the coordinate itself,
 since which way round the dot the name goes is an offset, not an anchor.
-`ANCHOR_STRATEGIES` maps a feature's kind to its strategy, and `anchors(kind,
-geometry)` is what everything else calls; `place-labels.py` searches offsets
-against whatever set it gets back and knows nothing about crests or coordinates.
+`polygon_anchors()` serves the lakes. `ANCHOR_STRATEGIES` maps a feature's kind
+to its strategy and `ON_FEATURE` says whether that kind's name may sit on the
+thing it names; `anchors(kind, geometry)` is what everything else calls, and
+`place-labels.py` searches offsets against whatever set it gets back, knowing
+nothing about crests, coordinates or shores.
 
-A new kind of feature is a row in that table, and one more strategy only if its
-geometry is a shape neither of these describes. A lake is a polygon and has
-neither a course nor a single coordinate, which is why the five of them still
-carry no name.
+A new kind of feature is a row in those two tables, and one more strategy only
+if its geometry is a shape none of them describes.
 
 `quality` is computed but nothing reads it yet: the search still ranks
-candidates by its own cost function. Introducing the interface was deliberately
-a port -- `build-physical.py` reproduces the shipped `DATA` byte for byte and
-`place-labels.py` reproduces the shipped placement.
+candidates by its own cost function. `inside` is read, by the lakes.
+
+## Where an area's name sits
+
+A shape's anchor is its **pole of inaccessibility** -- the interior point
+furthest from any edge -- found by quadtree subdivision, and never the centroid.
+The centroid of a crescent lies in its bay and the centroid of a ring lies in
+its hole; Yamdrok is dendritic enough that its own falls on dry land between two
+arms. The pole answers the question a map actually asks, *where is the roomiest
+interior point*, and the radius it comes with is what says whether a name fits.
+
+None of these five lakes fits its own name. The radius of the circle inside each,
+against half the diagonal of the name's box:
+
+| Lake | Circle | Name needs | Fits |
+|---|---:|---:|---|
+| Tso Ngonpo | 8.9 | 41.6 | no |
+| Namtso | 4.3 | 28.4 | no |
+| Siling Tso | 4.3 | 34.1 | no |
+| Yamdrok Tso | 1.4 | 44.3 | no |
+| Mapham Yutso | 2.7 | 52.1 | no |
+
+The specification asks for the radius against half the label's *height*, and
+that test is wrong by exactly the width of the name: Tso Ngonpo's circle is 8.9
+units and half its type is 8.2, so a half-height test would say an 82-unit name
+fits a lake 31 units across. A name is a box, and the box is what has to fit.
+
+So all five names stand beside their water, each tied to its own pole by a
+connector, and their offsets are searched on the same ring of positions a peak
+uses. The ring gained a radius at 20 units for this: with only the 14-unit ring
+inside the cap, an area label had eight positions in the whole map and Yamdrok
+Tso -- hemmed in by Lhasa and the Yarlung Tsangpo -- had nowhere to go.
 
 ## Where the range names sit
 
@@ -88,11 +117,18 @@ distances and draws a connector when the nearest foreign feature is less than
 and committed to `DATA` as `lead`, where it shows up in a diff; the widget only
 draws what it is told.
 
-Four names carry one: Duldza Zalmo Gang (ratio 0.18), Sangge Khabab (1.15),
-Langchen Khabab (1.15) and Nyenchen Tanglha (1.43). Three more measure as
+A lake's name is answered by a plainer question, in `mark_lake_connectors()`:
+whether the name still falls on the water it names. An area's name belongs in
+the middle of its shape, and where it sits there nothing has to be drawn to say
+whose it is; out beside the water the tie is not a matter of degree, because
+without it the reader has a name adrift between two lakes and a river. All five
+are tied.
+
+Four line names carry one: Duldza Zalmo Gang (ratio 0.18), Langchen Khabab
+(0.90), Sangge Khabab (1.14) and Nyenchen Tanglha (1.43). Three more measure as
 ambiguous but get nothing, because their names are already touching their own
-crest and a tick would have no length to draw: Pobar Gang (0.18), Tshawa Gang
-(0.44) and Markham Gang (1.45). Those three are a placement problem, not a
+crest and a tick would have no length to draw: Tshawa Gang (1.05), Markham Gang
+(1.45) and Pobar Gang (1.51). Those three are a placement problem, not a
 connector one, and they are what tier deferral is for -- a name that cannot be
 served where it belongs should stand down, not be jammed in.
 
@@ -116,6 +152,14 @@ and a number typed straight into them is the one thing no search ever sees. It
 also checks that every anchor is a point on the feature the map actually draws,
 and that no name is marked for a connector that has no room to draw one. A
 violation stops the build.
+
+Labelling the lakes cost something honest too. Five more names on an already
+crowded map took the placer's total residual overlap from 11.7 to 33.1, and
+four fifths of that is one corner: the Yarlung Tsangpo's great bend, where the
+river's name, Namcha Barwa and Pobar Gang were already competing. That is the
+crowding tier deferral is for -- a name that cannot be served where it belongs
+should stand down -- and until that exists the placer can only distribute the
+contact rather than remove it.
 
 Bringing Pobar Gang back inside the cap cost something honest: it had been
 flying 25 units to clear the crowd at the Yarlung Tsangpo's great bend, and now
