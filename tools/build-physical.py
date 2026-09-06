@@ -358,6 +358,34 @@ ON_FEATURE = {
 }
 
 
+# What a name yields to.  The tier decides who stands down when two labels
+# cannot both be served, never how far either may travel -- the offset cap is
+# the same for every label at every tier.  A tier-1 name never yields.
+TIERS = {
+    'region': 1,      # the three titles, and the towns
+    'city': 1,
+    'range': 2,
+    'river': 2,
+    'lake': 2,
+    'peak': 3,
+}
+
+# The names that lost their place at fit zoom, and the zoom that has room for
+# them.  A gate is not a preference: the label is not drawn below it.  These are
+# read off tools/place-labels.py, which computes for each real collision the
+# first zoom on the ladder at which the two boxes come apart -- the boxes hold
+# their size on screen while the map grows under them, so every collision clears
+# eventually and the only question is when.
+#
+# Namcha Barwa is the peak at the Yarlung Tsangpo's great bend, where the
+# river's name and Pobar Gang were already competing before the lakes arrived.
+# It is tier 3 against two tier-2 names, so it is the one that stands down.
+GATES = {
+    'Namcha Barwa': 1.5,
+}
+GATE_LADDER = (1.5, 3.0)
+
+
 def anchors(kind, geometry, metrics=None, **kw):
     """The anchor set for one feature, chosen by what kind of thing it is."""
     if kind not in ANCHOR_STRATEGIES:
@@ -627,6 +655,21 @@ def check_labels(out):
         if off > OFFSET_CAP:
             bad.append('peak %s: name sits %.1f from the summit, past the %g cap'
                        % (k['en'], off, OFFSET_CAP))
+    # A gate must name a label that exists, sit on the ladder, and never fall on
+    # a tier-1 name: what a first-tier label is entitled to is not a longer
+    # leash but its place, so it is never the one asked to stand down.
+    named = {it['en']: kind
+             for kind, items in (('river', out['rivers']), ('lake', out['lakes']),
+                                 ('range', out['ranges']), ('peak', out['peaks']))
+             for it in items}
+    for en, k in GATES.items():
+        if en not in named:
+            bad.append('gate on %s, which the map does not draw' % en)
+        elif TIERS[named[en]] == 1:
+            bad.append('gate on %s, which is tier 1 and never yields' % en)
+        if k not in GATE_LADDER:
+            bad.append('gate on %s is %g, which is not a zoom on the ladder %s'
+                       % (en, k, ', '.join('%g' % g for g in GATE_LADDER)))
     if bad:
         raise SystemExit('label rules broken:\n  ' + '\n  '.join(bad))
 
@@ -857,6 +900,8 @@ def main():
         if runs:
             item = {'bo': bo, 'en': en, 'main': main_stem, 'dy': dy,
                     'd': to_path(runs), 'lab': label_anchor(runs, frac, 'river')}
+            if en in GATES:
+                item['minK'] = GATES[en]
             out['rivers'].append(item)
             if item['lab']:
                 linear.append({'item': item, 'lab': item['lab'], 'dy': dy, 'runs': runs})
@@ -877,6 +922,8 @@ def main():
             got = anchors('lake', runs)
             item = {'bo': bo, 'en': en, 'd': to_path(runs, closed=True),
                     'ldx': ldx, 'ldy': ldy}
+            if en in GATES:
+                item['minK'] = GATES[en]
             if got:
                 item['lab'] = {'p': got[0]['p']}
             out['lakes'].append(item)
@@ -904,6 +951,8 @@ def main():
         item = {'bo': bo, 'en': name, 'd': to_path(runs), 'dy': dy,
                 'dFull': to_path([pts]),
                 'lab': label_anchor(runs or [pts], frac, 'range')}
+        if name in GATES:
+            item['minK'] = GATES[name]
         out['ranges'].append(item)
         if item['lab']:
             linear.append({'item': item, 'lab': item['lab'], 'dy': dy,
@@ -913,8 +962,11 @@ def main():
         x, y = project(lon, lat)
         if not near_edge(tibet, x, y):
             continue
-        out['peaks'].append({'bo': bo, 'en': en, 'p': anchors('peak', (x, y))[0]['p'],
-                             'ldx': ldx, 'ldy': ldy})
+        peak = {'bo': bo, 'en': en, 'p': anchors('peak', (x, y))[0]['p'],
+                'ldx': ldx, 'ldy': ldy}
+        if en in GATES:
+            peak['minK'] = GATES[en]
+        out['peaks'].append(peak)
 
     mark_connectors(linear, areal)
     mark_lake_connectors(areal)

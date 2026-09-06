@@ -115,6 +115,17 @@ RING_SPOTS = [(dx, dy) for r in (14, 20, 24, 38, 54)
                              (r * 0.7, r * 0.7), (-r * 0.7, r * 0.7))
               if math.hypot(dx, dy) <= bp.OFFSET_CAP]
 
+# Anchors for the fixed obstacles, so the gate arithmetic below can ask where a
+# town's name will be at a given zoom.  A town's name hangs off its dot and the
+# dot is what scales, so the dot is the anchor, not the middle of the box.
+OB_ANCHOR = {}
+for _c in DATA['cities']:
+    OB_ANCHOR[_c['name']] = tuple(_c['p'])
+    OB_ANCHOR[_c['bo']] = tuple(_c['p'])
+for _c in DATA['countryLabels']:
+    OB_ANCHOR[_c['name']] = tuple(_c['p'])
+
+
 def place_one(name, kind, runs, others):
     """Best position for one label given every other label's current box."""
     w, h = SIZE[name]['w'], SIZE[name]['h']
@@ -153,7 +164,7 @@ def place_one(name, kind, runs, others):
                 # gentle: clearing a real overlap must beat hugging the crest
                 cost += abs(key[0] - 0.5) * 6 + abs(abs(dy) - 9) * 0.7
             if best is None or cost < best[0]:
-                best = (cost, key, Q)
+                best = (cost, key, Q, tuple(lab['p']))
     return best
 
 
@@ -164,10 +175,11 @@ for n, k, r in FEATURES:
 
 boxes, chosen = {}, {}
 order = sorted(ITEMS, key=lambda r: -SIZE[r[0]]['w'])
+anchor_of, kind_of = {}, {n: k for n, k, _ in ITEMS}
 for name, kind, runs in order:                       # first pass, largest first
     got = place_one(name, kind, runs, [boxes[k] for k in boxes])
     if got:
-        chosen[name] = list(got[1]); boxes[name] = got[2]
+        chosen[name] = list(got[1]); boxes[name] = got[2]; anchor_of[name] = got[3]
 
 for sweep in range(6):                               # refine until settled
     resid = {n: sum(overlap(boxes[n], q) * wt for _, q, wt in OB)
@@ -186,9 +198,74 @@ for sweep in range(6):                               # refine until settled
         after = sum(overlap(got[2], q) * wt for _, q, wt in OB) \
               + sum(overlap(got[2], boxes[m]) for m in boxes if m != name)
         if after < resid[name] - 1e-9:
-            chosen[name] = list(got[1]); boxes[name] = got[2]; moved = True
+            chosen[name] = list(got[1]); boxes[name] = got[2]
+            anchor_of[name] = got[3]; moved = True
     if not moved:
         break
+
+# ---------------------------------------------------------------- tier gates
+#
+# Two boxes that touch at fit zoom do not touch for ever.  Type holds its size
+# on screen while the map grows under it, so the distance between two anchors
+# scales with k while the boxes do not: every collision comes apart at some
+# zoom, and the only question is which name waits and until when.
+#
+# Which name waits is the tier -- a first-tier name is entitled to its place,
+# not to a longer leash, so it never stands down.  The loser is not moved: it is
+# not drawn until the zoom that has room for it, which is the whole point of the
+# offset cap being hard.  Everything here is reported for a person to copy into
+# GATES in build-physical.py; nothing is decided at run time.
+REAL = 4.0     # squared depth: below this two boxes graze, they do not collide
+
+
+def shifted(Q, anchor, k):
+    """Where zoom k puts a box: its anchor scales with the map and its own size
+    does not, so the whole box travels (k-1) times the anchor."""
+    return [(x + (k - 1) * anchor[0], y + (k - 1) * anchor[1]) for x, y in Q]
+
+
+def clears_at(Q, aq, R, ar):
+    """The first zoom on the ladder at which two boxes come apart."""
+    for k in bp.GATE_LADDER:
+        if overlap(shifted(Q, aq, k), shifted(R, ar, k)) <= 0:
+            return k
+    return None
+
+
+def ob_anchor(o):
+    return OB_ANCHOR.get(o['t'], (o['x'] + o['w'] / 2, o['y'] + o['h'] / 2))
+
+
+gates, standing = {}, set(boxes)
+while True:
+    worst = None
+    for n in standing:
+        for m in standing:
+            if m <= n:
+                continue
+            d = overlap(boxes[n], boxes[m])
+            if d > REAL and (worst is None or d > worst[0]):
+                # the higher tier number yields; between equals, the one already
+                # carrying more overlap elsewhere is the one under more pressure
+                a, b = sorted((n, m), key=lambda x: (bp.TIERS[kind_of[x]],
+                                                     sum(overlap(boxes[x], boxes[y])
+                                                         for y in standing if y != x)))
+                worst = (d, b, a)
+        for o, q, wt in OB:
+            d = overlap(boxes[n], q)
+            if d > REAL and (worst is None or d > worst[0]):
+                worst = (d, n, o['t'])      # a town or a country never yields
+    if not worst:
+        break
+    _, loser, against = worst
+    other = boxes.get(against)
+    k = clears_at(boxes[loser], anchor_of[loser], other, anchor_of[against]) \
+        if other is not None else \
+        min([clears_at(boxes[loser], anchor_of[loser], q, ob_anchor(o))
+             for o, q, wt in OB if o['t'] == against and
+             clears_at(boxes[loser], anchor_of[loser], q, ob_anchor(o))] or [None])
+    gates[loser] = k or bp.GATE_LADDER[-1]
+    standing.discard(loser)
 
 total = 0.0
 for name, kind, runs in order:
@@ -205,4 +282,10 @@ for name, kind, runs in order:
              else ('frac %.2f dy %+d' % key), r,
              ('hits: ' + ', '.join(hits)) if hits else 'clear'))
 print('\n  total residual overlap: %.1f'% total)
+if gates:
+    print('\n  tier gates -- copy into GATES in build-physical.py:')
+    for n, k in sorted(gates.items()):
+        print('      %-20s tier %d, stands down until %gx' % (n, bp.TIERS[kind_of[n]], k))
+else:
+    print('\n  no name has to stand down at fit zoom')
 json.dump(chosen, open(os.path.join(HERE, 'placement.json'), 'w'))

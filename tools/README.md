@@ -106,6 +106,51 @@ their axis-aligned bounds instead rejects placements that are actually clear --
 a 124-unit name at 28 degrees has a bounding box roughly five times its own
 footprint.
 
+## Zoom, and the names that wait for it
+
+The map's zoom is one `scale()` on `.tm-zoom`, so without help everything inside
+it grows together and zooming is a magnifying glass: no name that was not there
+before ever appears, and the map has exactly one information density.
+
+A label's anchor belongs to the world and should grow with it. Its type and its
+offset are measured in line-heights and should not. So every label hangs in a
+`.tm-cs` group that scales by `1/k`, and the two cancel. That gives the small
+theorem the whole build-time solve rests on:
+
+> Label boxes hold their size on screen while every separation between them
+> grows with *k*. New collisions therefore cannot appear as the reader zooms in.
+> Fit zoom is the worst case, which is what makes one solve, at build time,
+> correct rather than merely a good approximation.
+
+At `k = 1` the counter-scale is `scale(1)`, so nothing already placed moves.
+Measured on the rendered widget, every physical name, town name and country name
+holds its screen size to within 0.01px from `k = 1` to `k = 8`.
+
+The region titles are deliberately left out. They are display type drawn to be
+underlapped, they are excluded from the collision set entirely, so no
+arrangement depends on their size -- and they are the one thing on this map the
+labelling layer was asked to leave exactly as it is.
+
+### Standing down
+
+Two boxes that touch at fit zoom do not touch for ever: the separation between
+their anchors scales with `k` while the boxes do not, so every collision comes
+apart at some zoom. The only questions are which name waits and until when, and
+`place-labels.py` answers both -- the tier decides who yields, and the first
+zoom on the ladder at which the two boxes come apart decides when it returns.
+
+The loser is not moved. It is not drawn until the zoom that has room for it,
+which is what makes the offset cap affordable: nobody buys space with distance.
+`TIERS` in `build-physical.py` holds the order -- region titles and towns first,
+then ranges, rivers and lakes, then peaks -- and a tier-1 name never stands down,
+because what it is entitled to is its place, not a longer leash.
+
+One name stands down today. **Namcha Barwa** is a tier-3 peak at the Yarlung
+Tsangpo's great bend, where the river's name and Pobar Gang were already
+competing before the lakes arrived; it waits for 1.5x and fades in there. That
+is recorded in `GATES`, committed to `DATA` as `minK`, and asserted at build
+time; the widget only draws what it is told.
+
 ## Connectors
 
 A name that has had to travel is tied back to its line with a short tick. What
