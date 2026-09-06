@@ -192,10 +192,10 @@ which is why the area figures in the panel are measurements of the shapes shown
 rather than quoted numbers.
 
 - **Ü-Tsang** — Lhasa, Shigatse, Nyingtri, Lhoka, Nagchu, Ngari, plus the
-  Tanggula/Changthang exclave administered from Golmud.
-- **Kham** — Chamdo, Garzê, Yushu, Dêqên, Muli, and the Gyalrong counties of
-  Ngawa (Barkham, Chuchen, Tsanlha, Li, Trochu, Mowun, Wenchuan).
-- **Amdo** — Xining, Haidong, Haibei, Malho, Tsolho, Golog, Tsonub, Kanlho, and
+  Gdang La(གདང་ལ་)/Changthang exclave administered from Na-gor-mo(ན་གོར་མོ་).
+- **Kham** — Chamdo, Garzê, Yushu, Dêqên, Muli(རྨི་ལི་), and the Gyalrong counties of
+  Ngawa (Barkham, Chuchen, Tsanlha, Lithang, Trochu(ཁྲོ་ཆུ་), Dukezong Ancient City, Shangri-La(རྒྱལ་ཐང་རྫོང་རྡོ་མཁར་གནའ་རྫོང་), Lunggu(ལུང་དགུ་)).
+- **Amdo** — Tso Ngön (མཚོ་སྔོན་) - (tsoshar(མཚོ་ཤར་), Tsojang(མཚོ་བྱང་), Malho(རྨ་ལྷོ་), Tsolho(མཚོ་ལྷོ་), Golog(མགོ་ལོག), Tsonub(མཚོ་ནུབ་), Kanlho(ཀན་ལྷོ་), and
   northern Ngawa (Ngawa, Dzoge, Marthang, Dzamthang, Zungchu, Zitsa Degu).
 
 **Internationally recognised boundaries only.** Every region is clipped against
