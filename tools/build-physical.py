@@ -237,6 +237,70 @@ def near_edge(rings, x, y, tol=7.0):
     return False
 
 
+# A name is set on a 14-unit line, and its box rides 0.3 of that above the
+# baseline the anchor sits on -- so the box spans dy - 0.8 * LINE_H to
+# dy + 0.2 * LINE_H in the frame the name is rotated into.  The renderer needs
+# the same three numbers to draw a connector; they are repeated there.
+LINE_H = 14.0
+LEAD_GAP = 2.0          # the tick stops this far short of the type
+AMBIGUOUS = 1.6         # below this ratio a name is not obviously its own
+
+
+def dist_to_runs(runs, x, y):
+    """Shortest distance from a point to a set of polylines."""
+    best = float('inf')
+    for run in runs:
+        if len(run) == 1:
+            best = min(best, math.hypot(run[0][0] - x, run[0][1] - y))
+            continue
+        for a, b in zip(run, run[1:]):
+            vx, vy = b[0] - a[0], b[1] - a[1]
+            L = vx * vx + vy * vy
+            t = 0.0 if L == 0 else max(0.0, min(1.0, ((x - a[0]) * vx + (y - a[1]) * vy) / L))
+            best = min(best, math.hypot(a[0] + t * vx - x, a[1] + t * vy - y))
+    return best
+
+
+def label_centre(lab, dy, h=LINE_H):
+    """Where the name's box actually sits: the anchor on the line, pushed dy off
+    it along the perpendicular, less the baseline-to-centre rise of the type.
+    This mirrors label_quad() in tools/place-labels.py."""
+    a = math.radians(lab['a'])
+    off = dy - h * 0.30
+    return lab['p'][0] - off * math.sin(a), lab['p'][1] + off * math.cos(a)
+
+
+def has_tick(dy, h=LINE_H, gap=LEAD_GAP):
+    """Whether a connector would have any length to draw.  A name pushed down
+    by 8 already overlaps the line it belongs to -- its box reaches back past
+    the anchor -- so there is nothing to connect."""
+    return (dy - 0.8 * h - gap > 0) if dy > 0 else (dy + 0.2 * h + gap < 0)
+
+
+def mark_connectors(feats):
+    """Decide which names get a connector, and record it in DATA.
+
+    The test is a ratio, not a distance.  A name 30 units off its crest with
+    nothing else near it reads perfectly well; one 14 units off with a river
+    17 units away does not.  Thresholding on distance gets this backwards --
+    it draws a line where none is needed and withholds one where it is -- so a
+    name is connected when the nearest foreign feature is less than AMBIGUOUS
+    times its own feature's distance away.
+
+    Foreign means the other named linear features.  Lakes are drawn but carry
+    no name yet, and a peak is a point with its own rule, so neither competes
+    for ownership of a range or river name.
+    """
+    for f in feats:
+        cx, cy = label_centre(f['lab'], f['dy'])
+        own = dist_to_runs(f['runs'], cx, cy)
+        foreign = min([dist_to_runs(g['runs'], cx, cy) for g in feats if g is not f]
+                      or [float('inf')])
+        f['ratio'] = foreign / own if own > 1e-9 else float('inf')
+        if f['ratio'] < AMBIGUOUS and has_tick(f['dy']):
+            f['item']['lead'] = 1
+
+
 def clip_to_tibet(runs, tibet, tol=0.0):
     """Keep only the parts of each run that fall inside Tibet.  The map is about
     the three regions, so a river is drawn where it runs through them and not
@@ -431,6 +495,9 @@ def main():
     lakes_src = json.load(open(os.path.join(HERE, 'ne_10m_lakes.geojson')))
 
     out = {'rivers': [], 'lakes': [], 'ranges': [], 'peaks': []}
+    # Every named line, with the geometry the map actually draws for it, so the
+    # connector test below can ask how near each name is to somebody else's.
+    linear = []
 
     for bo, en, names, main_stem, frac, dy in RIVERS:
         runs = []
@@ -444,8 +511,11 @@ def main():
                 for run in clip_to_tibet(clip_runs(pts, BOX), tibet):
                     runs.append(simplify(run, TOL_RIVER))
         if runs:
-            out['rivers'].append({'bo': bo, 'en': en, 'main': main_stem, 'dy': dy,
-                                  'd': to_path(runs), 'lab': label_anchor(runs, frac)})
+            item = {'bo': bo, 'en': en, 'main': main_stem, 'dy': dy,
+                    'd': to_path(runs), 'lab': label_anchor(runs, frac)}
+            out['rivers'].append(item)
+            if item['lab']:
+                linear.append({'item': item, 'lab': item['lab'], 'dy': dy, 'runs': runs})
 
     for bo, en, ne_name in LAKES:
         runs = []
@@ -481,9 +551,13 @@ def main():
         if not inside_any:
             sys.stderr.write('%s: outside the outline, drawn faint only\n' % name)
             runs = []
-        out['ranges'].append({'bo': bo, 'en': name, 'd': to_path(runs), 'dy': dy,
-                              'dFull': to_path([pts]),
-                              'lab': label_anchor(runs or [pts], frac)})
+        item = {'bo': bo, 'en': name, 'd': to_path(runs), 'dy': dy,
+                'dFull': to_path([pts]),
+                'lab': label_anchor(runs or [pts], frac)}
+        out['ranges'].append(item)
+        if item['lab']:
+            linear.append({'item': item, 'lab': item['lab'], 'dy': dy,
+                           'runs': runs or [pts]})
 
     for bo, en, lon, lat, ldx, ldy in PEAKS:
         x, y = project(lon, lat)
@@ -491,6 +565,14 @@ def main():
             continue
         out['peaks'].append({'bo': bo, 'en': en, 'p': [round(x, 1), round(y, 1)],
                              'ldx': ldx, 'ldy': ldy})
+
+    mark_connectors(linear)
+    for f in sorted(linear, key=lambda f: f['ratio']):
+        sys.stderr.write('  %-20s ratio %6.2f  %s\n'
+                         % (f['item']['en'], f['ratio'],
+                            'connector' if f['item'].get('lead') else
+                            ('ambiguous, but the name touches its own line'
+                             if f['ratio'] < AMBIGUOUS else '')))
 
     json.dump(out, sys.stdout, ensure_ascii=False, separators=(',', ':'))
     sys.stderr.write('rivers %d  lakes %d  ranges %d  peaks %d\n'

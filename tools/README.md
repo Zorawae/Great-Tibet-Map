@@ -41,6 +41,23 @@ their axis-aligned bounds instead rejects placements that are actually clear --
 a 124-unit name at 28 degrees has a bounding box roughly five times its own
 footprint.
 
+## Connectors
+
+A name that has had to travel is tied back to its line with a short tick. What
+triggers one is ambiguity, not distance: a name thirty units off a crest with
+nothing else near it reads perfectly well, while one fourteen units off with a
+river seventeen units away does not. So `mark_connectors()` compares the two
+distances and draws a connector when the nearest foreign feature is less than
+1.6 times as far as the name's own. The decision is made here, at build time,
+and committed to `DATA` as `lead`, where it shows up in a diff; the widget only
+draws what it is told.
+
+Four names carry one: Pobar Gang (ratio 0.13), Duldza Zalmo Gang (0.18),
+Sangge Khabab (1.14) and Nyenchen Tanglha (1.21). Two more measure as ambiguous
+but get nothing, because their names are already touching their own crest and a
+tick would have no length to draw: Tshawa Gang (0.62) and Markham Gang (1.45).
+Those two are a placement problem, not a connector one.
+
 The six gang are divisions of Kham, so the search also prefers to keep their
 names inside the Kham polygon.
 

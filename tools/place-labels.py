@@ -34,8 +34,10 @@ TIBET = bp.rings_of(DATA['outline'])
 KHAM = bp.rings_of(DATA['regions']['kham']['d'])
 PAD = 2.5
 FRACS = [i / 100 for i in range(4, 97, 2)]
-# A name that cannot fit near its own crest may move further off it; the widget
-# draws a leader line past 30 units so it stays clear which ridge it belongs to.
+# A name that cannot fit near its own crest may move further off it. Which ridge
+# it belongs to then stays clear because the widget draws a connector -- not past
+# some distance, but when the name is nearer somebody else's feature than its
+# own; mark_connectors() in build-physical.py decides that and records it.
 DYS = list(range(-64, -5, 3)) + list(range(8, 65, 3))
 
 
