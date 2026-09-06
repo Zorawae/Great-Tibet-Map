@@ -145,11 +145,17 @@ which is what makes the offset cap affordable: nobody buys space with distance.
 then ranges, rivers and lakes, then peaks -- and a tier-1 name never stands down,
 because what it is entitled to is its place, not a longer leash.
 
-One name stands down today. **Namcha Barwa** is a tier-3 peak at the Yarlung
-Tsangpo's great bend, where the river's name and Pobar Gang were already
-competing before the lakes arrived; it waits for 1.5x and fades in there. That
-is recorded in `GATES`, committed to `DATA` as `minK`, and asserted at build
-time; the widget only draws what it is told.
+Three names stand down today, all at 3x: **Duldza Zalmo Gang**, jammed against
+Jyekundo; **Yamdrok Tso**, which cannot fit between Lhasa and the Yarlung
+Tsangpo; and **Mapham Yutso**, in the crowd at the western corner with Gang
+Rinpoche, the Gangdise and the Langchen Khabab. That is recorded in `GATES`,
+committed to `DATA` as `minK`, and asserted at build time; the widget only draws
+what it is told.
+
+Twenty-six of the twenty-nine names are drawn at fit zoom, and the overlap
+between them is **6.0** -- against 374.6 counting the three that are not drawn,
+which is the number to watch when deciding whether the map is over-full rather
+than the number the reader experiences.
 
 ## Connectors
 
@@ -169,11 +175,13 @@ whose it is; out beside the water the tie is not a matter of degree, because
 without it the reader has a name adrift between two lakes and a river. All five
 are tied.
 
-Four line names carry one: Duldza Zalmo Gang (ratio 0.18), Langchen Khabab
-(0.90), Sangge Khabab (1.14) and Nyenchen Tanglha (1.43). Three more measure as
-ambiguous but get nothing, because their names are already touching their own
-crest and a tick would have no length to draw: Tshawa Gang (1.05), Markham Gang
-(1.45) and Pobar Gang (1.51). Those three are a placement problem, not a
+Two line names carry one: Duldza Zalmo Gang (ratio 0.03) and Langchen Khabab
+(0.43). Two more measure as ambiguous but get nothing, because their names are
+already touching their own crest and a tick would have no length to draw:
+Markham Gang (0.27) and Tshawa Gang (0.36). There are fewer of both than there
+used to be, and for the same reason: a two-line box reaches much further back
+over its own line than the one-line box this file used to assume, so a name has
+to travel further before a tick has any length at all. Those three are a placement problem, not a
 connector one, and they are what tier deferral is for -- a name that cannot be
 served where it belongs should stand down, not be jammed in.
 
@@ -198,13 +206,9 @@ also checks that every anchor is a point on the feature the map actually draws,
 and that no name is marked for a connector that has no room to draw one. A
 violation stops the build.
 
-Labelling the lakes cost something honest too. Five more names on an already
-crowded map took the placer's total residual overlap from 11.7 to 33.1, and
-four fifths of that is one corner: the Yarlung Tsangpo's great bend, where the
-river's name, Namcha Barwa and Pobar Gang were already competing. That is the
-crowding tier deferral is for -- a name that cannot be served where it belongs
-should stand down -- and until that exists the placer can only distribute the
-contact rather than remove it.
+Labelling the lakes cost something honest too: five more names on an already
+crowded map. What the numbers then said, though, was not to be believed -- see
+below.
 
 Bringing Pobar Gang back inside the cap cost something honest: it had been
 flying 25 units to clear the crowd at the Yarlung Tsangpo's great bend, and now
@@ -221,3 +225,37 @@ they are drawn to be underlapped. Scoring them even at a token weight was
 enough to push Mardza Gang 32 units off its own crest to clear the "Kham"
 title it was meant to sit under, so permeable obstacles are left out of the
 search entirely and Mardza Gang now sits on its ridge.
+
+## What the search was actually measuring
+
+Every placement this file has ever produced was searched against boxes half
+their real height, and positioned by a box model that only described a one-line
+label. Both are fixed now, and it is worth writing down what was wrong, because
+the numbers before and after are not comparable and nothing in the earlier
+reports meant what it appeared to mean.
+
+**The measurement.** `measure-labels.py` recorded the Latin `<text>` alone and
+then widened it by pairing each Tibetan run with `e.previousElementSibling`.
+That pairing stopped finding anything the moment `bilabel()` wrapped the Tibetan
+run in a `.tm-boslot` group -- the sibling is the slot, not the Latin name -- so
+the widening silently never fired. In "both" mode, which is the default, a range
+name is 26.7 units tall and was being collided as 13.7. It now measures the
+label group's own bounding box: one measurement of the thing on screen, rather
+than two and an assumption about the DOM between them.
+
+**The box model.** The box was taken to ride 0.3 of a line above the baseline
+its anchor sits on. That is right for one line. For the two-line block the map
+actually draws, the middle of the box falls *below* the first baseline, and the
+model was out by some ten units. Both `build-physical.py` and `place-labels.py`
+now put the box's top edge `ASC` above the baseline and its middle `h/2` below
+that, which is the same arithmetic for one line and the right arithmetic for
+two. Checked against the rendered widget, the model now predicts every label's
+centre to within 1.75 units, and most to within 0.25.
+
+**What that revealed.** Measured honestly, the map at fit zoom was carrying
+nearly 1270 units of overlap, and serving it by the rules would have meant eight
+names standing down, the Yarlung Tsangpo and the Himalaya among them. The
+physical names were set smaller instead -- 11.5 to 9.5px for the ranges, 13.5 to
+11 for the water, with the Tibetan line coming up to match -- which is the trade
+the author had already allowed for names that overlap, since the map zooms. That
+took it to 374.6, of which 6.0 is between names actually drawn.

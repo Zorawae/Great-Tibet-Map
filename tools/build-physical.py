@@ -381,7 +381,9 @@ TIERS = {
 # river's name and Pobar Gang were already competing before the lakes arrived.
 # It is tier 3 against two tier-2 names, so it is the one that stands down.
 GATES = {
-    'Namcha Barwa': 1.5,
+    'Duldza Zalmo Gang': 3,
+    'Mapham Yutso': 3,
+    'Yamdrok Tso': 3,
 }
 GATE_LADDER = (1.5, 3.0)
 
@@ -488,11 +490,19 @@ def near_edge(rings, x, y, tol=7.0):
     return False
 
 
-# A name is set on a 14-unit line, and its box rides 0.3 of that above the
-# baseline the anchor sits on -- so the box spans dy - 0.8 * LINE_H to
-# dy + 0.2 * LINE_H in the frame the name is rotated into.  The renderer needs
-# the same three numbers to draw a connector; they are repeated there.
-LINE_H = 14.0
+# A name is set on a 14-unit line whose top edge is 0.8 of a line above the
+# baseline the anchor sits on.  In "both" mode -- the default -- the Tibetan
+# name sits on a second line under the Latin one, so the box the reader sees is
+# two lines tall and its middle falls *below* the first baseline, not above it:
+# it spans dy - ASC to dy - ASC + h, for a box h tall.
+#
+# That last sentence was wrong here for as long as this file has existed.  The
+# box was modelled as 0.3 of a line above the baseline, which is right for one
+# line and out by some ten units for two, and tools/measure-labels.py was
+# recording half the true height besides.  Both are fixed; the renderer needs
+# the same numbers to draw a connector and they are repeated there.
+LINE_H = 14.0           # one line of type
+ASC = 0.8 * LINE_H      # baseline to the top edge of the box
 LEAD_GAP = 2.0          # the tick stops this far short of the type
 AMBIGUOUS = 1.6         # below this ratio a name is not obviously its own
 
@@ -520,20 +530,29 @@ def dist_to_runs(runs, x, y):
     return best
 
 
+def box_h(item, h=LINE_H):
+    """How tall the label the map draws is: two lines where the feature has a
+    Tibetan name to set under its Latin one, otherwise one.  The build has no
+    measured type -- that is the placer's -- so it counts lines."""
+    return h * (2 if item.get('bo') else 1)
+
+
 def label_centre(lab, dy, h=LINE_H):
     """Where the name's box actually sits: the anchor on the line, pushed dy off
-    it along the perpendicular, less the baseline-to-centre rise of the type.
-    This mirrors label_quad() in tools/place-labels.py."""
+    it along the perpendicular, then back up to the middle of a box whose top
+    edge is ASC above the baseline.  This mirrors label_quad() in
+    tools/place-labels.py."""
     a = math.radians(lab['a'])
-    off = dy - h * 0.30
+    off = dy - ASC + h / 2.0
     return lab['p'][0] - off * math.sin(a), lab['p'][1] + off * math.cos(a)
 
 
 def has_tick(dy, h=LINE_H, gap=LEAD_GAP):
     """Whether a connector would have any length to draw.  A name pushed down
     by 8 already overlaps the line it belongs to -- its box reaches back past
-    the anchor -- so there is nothing to connect."""
-    return (dy - 0.8 * h - gap > 0) if dy > 0 else (dy + 0.2 * h + gap < 0)
+    the anchor -- so there is nothing to connect.  A two-line box reaches back
+    further, which is why so few names can carry a tick."""
+    return (dy - ASC - gap > 0) if dy > 0 else (dy - ASC + h + gap < 0)
 
 
 def mark_connectors(feats, rivals=()):
@@ -553,22 +572,23 @@ def mark_connectors(feats, rivals=()):
     mark_lake_connectors() below, which asks a plainer question than a ratio.
     """
     for f in feats:
-        cx, cy = label_centre(f['lab'], f['dy'])
+        cx, cy = label_centre(f['lab'], f['dy'], box_h(f['item']))
         own = dist_to_runs(f['runs'], cx, cy)
         foreign = min([dist_to_runs(g['runs'], cx, cy) for g in feats if g is not f]
                       + [dist_to_runs([r + r[:1] for r in g['runs']], cx, cy)
                          for g in rivals]
                       or [float('inf')])
         f['ratio'] = foreign / own if own > 1e-9 else float('inf')
-        if f['ratio'] < AMBIGUOUS and has_tick(f['dy']):
+        if f['ratio'] < AMBIGUOUS and has_tick(f['dy'], box_h(f['item'])):
             f['item']['lead'] = 1
 
 
-def lake_label_centre(item, h=LINE_H):
+def lake_label_centre(item):
     """Where a lake's name actually sits: the anchor in the water, plus the
-    offset that carries the name out of it, less the same baseline-to-centre
-    rise the linear labels use."""
-    return item['lab']['p'][0] + item['ldx'], item['lab']['p'][1] + item['ldy'] - h * 0.30
+    offset that carries the name out of it, then down to the middle of the box
+    the same way label_centre() does."""
+    return (item['lab']['p'][0] + item['ldx'],
+            item['lab']['p'][1] + item['ldy'] - ASC + box_h(item) / 2.0)
 
 
 def mark_lake_connectors(feats):
@@ -614,7 +634,7 @@ def check_labels(out):
                 or [r for r in rings_of(it.get('dFull', '')) if len(r) > 1]
             if dist_to_runs(runs, *it['lab']['p']) > 0.6:
                 bad.append('%s %s: anchor is not on the drawn feature' % (kind, it['en']))
-            if it.get('lead') and not has_tick(it['dy']):
+            if it.get('lead') and not has_tick(it['dy'], box_h(it)):
                 bad.append('%s %s: marked for a connector with no room to draw one'
                            % (kind, it['en']))
     for l in out['lakes']:
@@ -713,13 +733,13 @@ def to_path(runs, closed=False):
 # carry (Brahmaputra, Mekong, Yangtze ...) are not shown on the map.  The last
 # two numbers are where the label sits along the course and how far off it.
 RIVERS = [
-    ('ཡར་ཀླུང་གཙང་པོ་', 'Yarlung Tsangpo', ['Maquan', 'Yarlung', 'Dihang', 'Brahmaputra'], 1, 0.82, 8),
-    ('རྨ་ཆུ་',           'Ma Chu',          ['Huang'],                                     1, 0.50, 8),
-    ('འབྲི་ཆུ་',          'Drichu',          ['Tuotuo', 'Tongtian', 'Jinsha', 'Chang Jiang'],1, 0.08, 8),
-    ('རྫ་ཆུ་',           'Za Qu',           ['Za', 'Lancang', 'Mekong'],                   1, 0.84, 8),
+    ('ཡར་ཀླུང་གཙང་པོ་', 'Yarlung Tsangpo', ['Maquan', 'Yarlung', 'Dihang', 'Brahmaputra'], 1, 0.72, 11),
+    ('རྨ་ཆུ་',           'Ma Chu',          ['Huang'],                                     1, 0.5, 8),
+    ('འབྲི་ཆུ་',          'Drichu',          ['Tuotuo', 'Tongtian', 'Jinsha', 'Chang Jiang'],1, 0.88, -10),
+    ('རྫ་ཆུ་',           'Za Qu',           ['Za', 'Lancang', 'Mekong'],                   1, 0.04, -10),
     ('རྒྱ་མོ་རྔུལ་ཆུ་',    'Gyalmo Ngulchu',  ['Nu', 'Salween'],                             1, 0.48, -10),
-    ('སེང་གེ་ཁ་འབབ་',    'Sangge Khabab',   ['Shiquan', 'Indus'],                          1, 0.84, -19),
-    ('གླང་ཆེན་ཁ་འབབ་',   'Langchen Khabab', ['Sutlej'],                                    0, 0.22, -13),
+    ('སེང་གེ་ཁ་འབབ་',    'Sangge Khabab',   ['Shiquan', 'Indus'],                          1, 0.86, -19),
+    ('གླང་ཆེན་ཁ་འབབ་',   'Langchen Khabab', ['Sutlej'],                                    0, 0.22, 20),
     # Macha Khabab is left out: Natural Earth's Ghaghara segment begins at the
     # border, so only about 15 px of it falls inside Tibet -- too little to read
     # as a river, while its name crowded the corner where the Sengge and Langchen
@@ -742,8 +762,8 @@ LAKES = [
     ('',  'Tso Ngonpo',   'Qinghai Hu',   0, 14),
     ('',  'Namtso',       'Nam Co',       0, 14),
     ('',  'Siling Tso',   'Siling Co',    0, 14),
-    ('',  'Yamdrok Tso',  'Yamzho Yumco', 0, 20),
-    ('',  'Mapham Yutso', 'Mapam Yumco',  0, 14),
+    ('',  'Yamdrok Tso',  'Yamzho Yumco', 0, -20),
+    ('',  'Mapham Yutso', 'Mapam Yumco',  9.8, -9.8),
 ]
 
 # Range spines, west to east (or north to south).  The number after the name is
@@ -770,7 +790,7 @@ LAKES = [
 #
 # (lon, lat), west to east or north to south.
 PEAK_RANGES = [
-    ('ཧི་མ་ལ་སྒང་', 'Himalaya', 0.46, 8, [
+    ('ཧི་མ་ལ་སྒང་', 'Himalaya', 0.52, -10, [
         (74.60, 35.20),   # Nanga Parbat    8125 m
         (76.00, 34.00),   # Nun             7135 m
         (80.00, 30.50),   # Nanda Devi      7817 m
@@ -780,24 +800,24 @@ PEAK_RANGES = [
         (90.50, 28.00),   # Gangkar Punsum  7570 m
         (92.50, 27.90),   # Kangto          7060 m
         (95.06, 29.63)]), # Namcha Barwa    7782 m
-    ('\u0f41\u0f74\u0f0b\u0f53\u0f74\u0f0b\u0f62\u0f72\u0f0b\u0f62\u0f92\u0fb1\u0f74\u0f51\u0f0b', 'khunu ri rgyud', 0.50, -10, [
+    ('\u0f41\u0f74\u0f0b\u0f53\u0f74\u0f0b\u0f62\u0f72\u0f0b\u0f62\u0f92\u0fb1\u0f74\u0f51\u0f0b', 'khunu ri rgyud', 0.5, -10, [
         # centreline of Natural Earth's KUNLUN MOUNTAINS polygon, smoothed
         (78.70, 36.50), (80.30, 36.20), (81.80, 36.10), (83.30, 36.60),
         (86.40, 37.00), (88.00, 36.80), (89.50, 37.20), (91.00, 37.20),
         (92.60, 36.80), (94.10, 36.45), (95.60, 36.40), (97.20, 35.90),
         (98.70, 35.70)]),
-    ('', 'Karakoram', 0.50, -10, [
+    ('', 'Karakoram', 0.5, -10, [
         (74.60, 36.50),   # Batura Mustagh I 7795 m
         (76.51, 35.88),   # K2               8611 m
         (77.80, 35.20),   # Shahi Kangri     6934 m
         (78.50, 33.80)]), # Kangju Kangri    6725 m
-    ('\u0f42\u0f44\u0f66\u0f0b\u0f4f\u0f72\u0f0b\u0f66\u0f7a\u0f0b', 'Gangdise', 0.52, -10, [
+    ('\u0f42\u0f44\u0f66\u0f0b\u0f4f\u0f72\u0f0b\u0f66\u0f7a\u0f0b', 'Gangdise', 0.54, -10, [
         (81.00, 32.80),   # Nganglong Kangri 6720 m
         (81.31, 31.07),   # Gang Rinpoche    6638 m
         (83.50, 30.90),   # anchor
         (86.50, 30.70),   # anchor
         (88.50, 30.50)]), # anchor, meeting the Nyenchen Tanglha
-    ('\u0f42\u0f49\u0f53\u0f0b\u0f46\u0f7a\u0f53\u0f0b\u0f50\u0f44\u0f0b\u0f63\u0fb7\u0f0b', 'Nyenchen Tanglha', 0.50, -10, [
+    ('\u0f42\u0f49\u0f53\u0f0b\u0f46\u0f7a\u0f53\u0f0b\u0f50\u0f44\u0f0b\u0f63\u0fb7\u0f0b', 'Nyenchen Tanglha', 0.5, -10, [
         (90.57, 30.38),   # Nyenchen Tanglha 7162 m
         (92.50, 30.60),   # anchor
         (94.30, 30.20),   # anchor
@@ -806,7 +826,7 @@ PEAK_RANGES = [
     # it, so this crest is Geladandong with anchors either side of it, the way
     # the Gangdise and the Nyenchen Tanglha are already built. It follows the
     # Qinghai/TAR border and the Drichu-Ngulchu divide, west to east.
-    ('གདང་ལ་', 'Gdang La', 0.42, -10, [
+    ('གདང་ལ་', 'Gdang La', 0.44, -10, [
         (89.80, 33.60),   # anchor, off the Changthang
         (91.08, 33.42),   # Geladandong     6621 m
         (92.50, 33.00),   # anchor, by the Tanggula pass
@@ -818,7 +838,7 @@ PEAK_RANGES = [
     # check as well as a source: Kangze'gyai, the range's high point at
     # 97.716E 38.515N, sits 0.02 degrees off the line, which is under a
     # thousandth of the range's length.
-    ('མདོ་ལ་རིང་མོ་', 'Dhola Ringmo', 0.50, -10, [
+    ('མདོ་ལ་རིང་མོ་', 'Dhola Ringmo', 0.5, -10, [
         (94.35, 39.18), (95.06, 39.13), (95.78, 38.90), (96.50, 38.81),
         (97.22, 38.70), (97.93, 38.43), (98.65, 38.38), (99.37, 38.03),
         (100.09, 38.02), (100.81, 37.32), (101.52, 37.22), (102.24, 37.16),
@@ -830,15 +850,15 @@ PEAK_RANGES = [
 # the water.  Pobar in the west and Minya in the east are not between a pair and
 # are anchored on their own high ground instead.
 GANG_BETWEEN = [
-    ('དུལ་དབང་ཟལ་མོ་སྒང་', 'Duldza Zalmo Gang', 0.04, -16, 'Drichu',         'Za Qu',  (31.8, 33.6)),
-    ('མར་རྫ་སྒང་', 'Mardza Gang',          0.50, 8, 'Ma Chu',         'Drichu', (32.0, 33.4)),
-    ('ཚ་བ་སྒང་', 'Tshawa Gang',       0.72, 8, 'Gyalmo Ngulchu', 'Za Qu',  (28.2, 30.6)),
-    ('རྨར་ཁམས་སྒང་', 'Markham Gang',      0.50, 8, 'Za Qu',          'Drichu', (28.2, 30.6)),
+    ('དུལ་དབང་ཟལ་མོ་སྒང་', 'Duldza Zalmo Gang', 0.04, -19, 'Drichu',         'Za Qu',  (31.8, 33.6)),
+    ('མར་རྫ་སྒང་', 'Mardza Gang',          0.5, -10, 'Ma Chu',         'Drichu', (32.0, 33.4)),
+    ('ཚ་བ་སྒང་', 'Tshawa Gang',       0.88, 8, 'Gyalmo Ngulchu', 'Za Qu',  (28.2, 30.6)),
+    ('རྨར་ཁམས་སྒང་', 'Markham Gang',      0.5, 8, 'Za Qu',          'Drichu', (28.2, 30.6)),
 ]
 GANG_ANCHORED = [
-    ('པོ་བར་སྒང་', 'Pobar Gang', 0.46, 8, [
+    ('པོ་བར་སྒང་', 'Pobar Gang', 0.54, -10, [
         (94.40, 30.30), (95.30, 30.00), (96.20, 29.90), (97.00, 30.00)]),
-    ('མི་ཉག་སྒང་', 'Minyag Gang', 0.68, 11, [
+    ('མི་ཉག་སྒང་', 'Minyag Gang', 0.34, 8, [
         (100.60, 30.80),
         (101.88, 29.60),   # Gongga Shan / Minyag Gangkar 7556 m
         (102.10, 29.10)]),
@@ -851,9 +871,9 @@ GANG_ANCHORED = [
 # Peak names are placed on a ring of positions round the marker by
 # tools/place-labels.py; the last two numbers are the offset it chose.
 PEAKS = [
-    ('ཇོ་མོ་གླང་མ་', 'Chomo lungma', 86.925, 27.988, 10, -10),
-    ('གངས་རིན་པོ་ཆེ་', 'Gang Rinpoche', 81.312, 31.067, -14, 6),
-    ('', 'Namcha Barwa', 95.055, 29.628, 0, 14),
+    ('ཇོ་མོ་གླང་མ་', 'Chomo lungma', 86.925, 27.988, 9.8, -9.8),
+    ('གངས་རིན་པོ་ཆེ་', 'Gang Rinpoche', 81.312, 31.067, 0, -20),
+    ('', 'Namcha Barwa', 95.055, 29.628, 9.8, 9.8),
     ('', 'Amnye Machen', 99.478, 34.828, 0, -14),
 ]
 

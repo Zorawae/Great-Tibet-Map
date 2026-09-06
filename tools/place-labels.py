@@ -56,10 +56,14 @@ def corners(cx, cy, w, h, ang):
 
 
 def label_quad(anchor, ang, w, h, dy):
+    """The box the name occupies, pushed dy off its anchor along the
+    perpendicular.  The box's top edge is bp.ASC above the baseline the anchor
+    sits on, so its middle is h/2 below that -- which for the two-line box the
+    map actually draws falls *below* the baseline, not above it."""
     a = math.radians(ang)
-    cx = anchor[0] - dy * math.sin(a) + (h * 0.30) * math.sin(a)
-    cy = anchor[1] + dy * math.cos(a) - (h * 0.30) * math.cos(a)
-    return corners(cx, cy, w + PAD * 2, h + PAD * 2, ang)
+    off = dy - bp.ASC + h / 2.0
+    return corners(anchor[0] - off * math.sin(a), anchor[1] + off * math.cos(a),
+                   w + PAD * 2, h + PAD * 2, ang)
 
 
 def overlap(A, B):
@@ -282,6 +286,14 @@ for name, kind, runs in order:
              else ('frac %.2f dy %+d' % key), r,
              ('hits: ' + ', '.join(hits)) if hits else 'clear'))
 print('\n  total residual overlap: %.1f'% total)
+# The number that matters is the one the reader sees.  A name that stands down
+# is not on the map at fit zoom, and neither is its overlap -- nor the overlap
+# it was causing everybody else.
+seen = sum(sum(overlap(boxes[n], q) * wt for _, q, wt in OB)
+           + sum(overlap(boxes[n], boxes[m]) for m in standing if m != n)
+           for n in standing)
+print('  of which visible at fit zoom: %.1f  (%d of %d names drawn)'
+      % (seen, len(standing), len(boxes)))
 if gates:
     print('\n  tier gates -- copy into GATES in build-physical.py:')
     for n, k in sorted(gates.items()):
