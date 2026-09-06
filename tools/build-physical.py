@@ -276,13 +276,13 @@ def to_path(runs, closed=False):
 # carry (Brahmaputra, Mekong, Yangtze ...) are not shown on the map.  The last
 # two numbers are where the label sits along the course and how far off it.
 RIVERS = [
-    ('ཡར་ཀླུང་གཙང་པོ་', 'Yarlung Tsangpo', ['Maquan', 'Yarlung', 'Dihang', 'Brahmaputra'], 1, 0.78, 8),
+    ('ཡར་ཀླུང་གཙང་པོ་', 'Yarlung Tsangpo', ['Maquan', 'Yarlung', 'Dihang', 'Brahmaputra'], 1, 0.70, -10),
     ('རྨ་ཆུ་',           'Ma Chu',          ['Huang'],                                     1, 0.50, 8),
-    ('འབྲི་ཆུ་',          'Drichu',          ['Tuotuo', 'Tongtian', 'Jinsha', 'Chang Jiang'],1, 0.04, 8),
-    ('རྫ་ཆུ་',           'Za Qu',           ['Za', 'Lancang', 'Mekong'],                   1, 0.96, 11),
+    ('འབྲི་ཆུ་',          'Drichu',          ['Tuotuo', 'Tongtian', 'Jinsha', 'Chang Jiang'],1, 0.08, 8),
+    ('རྫ་ཆུ་',           'Za Qu',           ['Za', 'Lancang', 'Mekong'],                   1, 0.88, 8),
     ('རྒྱ་མོ་རྔུལ་ཆུ་',    'Gyalmo Ngulchu',  ['Nu', 'Salween'],                             1, 0.48, -10),
-    ('སེང་གེ་ཁ་འབབ་',    'Sangge Khabab',   ['Shiquan', 'Indus'],                          1, 0.84, -22),
-    ('གླང་ཆེན་ཁ་འབབ་',   'Langchen Khabab', ['Sutlej'],                                    0, 0.32, 20),
+    ('སེང་གེ་ཁ་འབབ་',    'Sangge Khabab',   ['Shiquan', 'Indus'],                          1, 0.84, -19),
+    ('གླང་ཆེན་ཁ་འབབ་',   'Langchen Khabab', ['Sutlej'],                                    0, 0.56, 8),
     # Macha Khabab is left out: Natural Earth's Ghaghara segment begins at the
     # border, so only about 15 px of it falls inside Tibet -- too little to read
     # as a river, while its name crowded the corner where the Sengge and Langchen
@@ -322,7 +322,7 @@ LAKES = [
 #
 # (lon, lat), west to east or north to south.
 PEAK_RANGES = [
-    ('ཧི་མ་ལ་སྒང་', 'Himalaya', 0.56, -10, [
+    ('ཧི་མ་ལ་སྒང་', 'Himalaya', 0.46, 8, [
         (74.60, 35.20),   # Nanga Parbat    8125 m
         (76.00, 34.00),   # Nun             7135 m
         (80.00, 30.50),   # Nanda Devi      7817 m
@@ -343,13 +343,13 @@ PEAK_RANGES = [
         (76.51, 35.88),   # K2               8611 m
         (77.80, 35.20),   # Shahi Kangri     6934 m
         (78.50, 33.80)]), # Kangju Kangri    6725 m
-    ('\u0f42\u0f44\u0f66\u0f0b\u0f4f\u0f72\u0f0b\u0f66\u0f7a\u0f0b', 'Gangdise', 0.72, 8, [
+    ('\u0f42\u0f44\u0f66\u0f0b\u0f4f\u0f72\u0f0b\u0f66\u0f7a\u0f0b', 'Gangdise', 0.50, -10, [
         (81.00, 32.80),   # Nganglong Kangri 6720 m
         (81.31, 31.07),   # Gang Rinpoche    6638 m
         (83.50, 30.90),   # anchor
         (86.50, 30.70),   # anchor
         (88.50, 30.50)]), # anchor, meeting the Nyenchen Tanglha
-    ('\u0f42\u0f49\u0f53\u0f0b\u0f46\u0f7a\u0f53\u0f0b\u0f50\u0f44\u0f0b\u0f63\u0fb7\u0f0b', 'Nyenchen Tanglha', 0.22, -10, [
+    ('\u0f42\u0f49\u0f53\u0f0b\u0f46\u0f7a\u0f53\u0f0b\u0f50\u0f44\u0f0b\u0f63\u0fb7\u0f0b', 'Nyenchen Tanglha', 0.44, -10, [
         (90.57, 30.38),   # Nyenchen Tanglha 7162 m
         (92.50, 30.60),   # anchor
         (94.30, 30.20),   # anchor
@@ -370,7 +370,7 @@ PEAK_RANGES = [
     # check as well as a source: Kangze'gyai, the range's high point at
     # 97.716E 38.515N, sits 0.02 degrees off the line, which is under a
     # thousandth of the range's length.
-    ('མདོ་ལ་རིང་མོ་', 'Dhola Ringmo', 0.60, -10, [
+    ('མདོ་ལ་རིང་མོ་', 'Dhola Ringmo', 0.50, -10, [
         (94.35, 39.18), (95.06, 39.13), (95.78, 38.90), (96.50, 38.81),
         (97.22, 38.70), (97.93, 38.43), (98.65, 38.38), (99.37, 38.03),
         (100.09, 38.02), (100.81, 37.32), (101.52, 37.22), (102.24, 37.16),
@@ -382,15 +382,15 @@ PEAK_RANGES = [
 # the water.  Pobar in the west and Minya in the east are not between a pair and
 # are anchored on their own high ground instead.
 GANG_BETWEEN = [
-    ('དུལ་དབང་ཟལ་མོ་སྒང་', 'Duldza Zalmo Gang', 0.04, -44, 'Drichu',         'Za Qu',  (31.8, 33.6)),
-    ('མར་རྫ་སྒང་', 'Mardza Gang',          0.84, -32, 'Ma Chu',         'Drichu', (32.0, 33.4)),
-    ('ཚ་བ་སྒང་', 'Tshawa Gang',       0.70, 8, 'Gyalmo Ngulchu', 'Za Qu',  (28.2, 30.6)),
-    ('རྨར་ཁམས་སྒང་', 'Markham Gang',      0.48, 8, 'Za Qu',          'Drichu', (28.2, 30.6)),
+    ('དུལ་དབང་ཟལ་མོ་སྒང་', 'Duldza Zalmo Gang', 0.04, -16, 'Drichu',         'Za Qu',  (31.8, 33.6)),
+    ('མར་རྫ་སྒང་', 'Mardza Gang',          0.50, 8, 'Ma Chu',         'Drichu', (32.0, 33.4)),
+    ('ཚ་བ་སྒང་', 'Tshawa Gang',       0.82, 8, 'Gyalmo Ngulchu', 'Za Qu',  (28.2, 30.6)),
+    ('རྨར་ཁམས་སྒང་', 'Markham Gang',      0.50, 8, 'Za Qu',          'Drichu', (28.2, 30.6)),
 ]
 GANG_ANCHORED = [
-    ('པོ་བར་སྒང་', 'Pobar Gang', 0.50, -19, [
+    ('པོ་བར་སྒང་', 'Pobar Gang', 0.32, -25, [
         (94.40, 30.30), (95.30, 30.00), (96.20, 29.90), (97.00, 30.00)]),
-    ('མི་ཉག་སྒང་', 'Minyag Gang', 0.34, 11, [
+    ('མི་ཉག་སྒང་', 'Minyag Gang', 0.68, 11, [
         (100.60, 30.80),
         (101.88, 29.60),   # Gongga Shan / Minyag Gangkar 7556 m
         (102.10, 29.10)]),
@@ -403,9 +403,9 @@ GANG_ANCHORED = [
 # Peak names are placed on a ring of positions round the marker by
 # tools/place-labels.py; the last two numbers are the offset it chose.
 PEAKS = [
-    ('ཇོ་མོ་གླང་མ་', 'Chomo lungma', 86.925, 27.988, 14, 6),
-    ('གངས་རིན་པོ་ཆེ་', 'Gang Rinpoche', 81.312, 31.067, 54, 6),
-    ('', 'Namcha Barwa', 95.055, 29.628, 9, -9),
+    ('ཇོ་མོ་གླང་མ་', 'Chomo lungma', 86.925, 27.988, 10, -10),
+    ('གངས་རིན་པོ་ཆེ་', 'Gang Rinpoche', 81.312, 31.067, 0, 24),
+    ('', 'Namcha Barwa', 95.055, 29.628, 14, 6),
     ('', 'Amnye Machen', 99.478, 34.828, 0, -14),
 ]
 

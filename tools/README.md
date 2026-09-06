@@ -42,6 +42,11 @@ a 124-unit name at 28 degrees has a bounding box roughly five times its own
 footprint.
 
 The six gang are divisions of Kham, so the search also prefers to keep their
-names inside the Kham polygon. Mardza gang is the exception it cannot satisfy:
-its crest runs under the "Kham" title with no clear ground at that latitude, so
-its name sits just north, on the Amdo side of a line it genuinely borders.
+names inside the Kham polygon.
+
+The region titles are not obstacles. They are set large and translucent and
+step back when a physical layer is on, so a name crossing one is not a fault:
+they are drawn to be underlapped. Scoring them even at a token weight was
+enough to push Mardza Gang 32 units off its own crest to clear the "Kham"
+title it was meant to sit under, so permeable obstacles are left out of the
+search entirely and Mardza Gang now sits on its ridge.

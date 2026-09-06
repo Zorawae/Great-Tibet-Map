@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Choose where each river and range name sits on its own line.
 
-Eleven names competing with the towns, the region titles and each other is not
+Eleven names competing with the towns, the country names and each other is not
 something to place by eye, so it is searched: for every feature, how far along
 its line the name sits and how far it is pushed off it.
 
@@ -74,13 +74,14 @@ def overlap(A, B):
 
 
 # Town names, rivers and other labels are hard obstacles: a name must not touch
-# them.  The region titles are soft -- they are set large, they step back when a
-# physical layer is on, and two of the gang have nowhere in Kham that clears
-# them -- so crossing one is allowed at a cost rather than forbidden.
-SOFT = 0.06
-OB = [(o, corners(o['x'] + o['w'] / 2, o['y'] + o['h'] / 2, o['w'], o['h'], 0),
-       SOFT if o['kind'] == 'region' else 1.0)
-      for o in M['obstacles']]
+# them.  The region titles are not obstacles at all.  They are set large and
+# translucent and step back when a physical layer is on -- they are drawn to be
+# underlapped, so a name crossing one is not a fault to be priced.  Scoring them
+# even at 6% of a squared penetration depth was enough to push Mardza Gang 32
+# units off its own crest to clear a title it was meant to sit under, so
+# permeable obstacles are left out of the search entirely.
+OB = [(o, corners(o['x'] + o['w'] / 2, o['y'] + o['h'] / 2, o['w'], o['h'], 0), 1.0)
+      for o in M['obstacles'] if o['kind'] != 'region']
 
 # A rim range clipped away to nothing -- Karakoram lies wholly outside the
 # outline -- still needs a line to hang its name on, so fall back to the full
@@ -178,7 +179,7 @@ for name, kind, runs in order:
     r = sum(overlap(Q, q) * wt for _, q, wt in OB) + sum(overlap(Q, boxes[m]) for m in boxes if m != name)
     total += r
     key = tuple(chosen[name])
-    hits = [o['t'][:16] for o, q, wt in OB if overlap(Q, q) > 0 and wt > SOFT] + \
+    hits = [o['t'][:16] for o, q, wt in OB if overlap(Q, q) > 0] + \
            [m for m in boxes if m != name and overlap(Q, boxes[m]) > 0]
     print('  %-20s %-6s %-18s overlap %6.1f  %s'
           % (name, kind, ('dx %+d dy %+d' % key) if kind == 'peak'
