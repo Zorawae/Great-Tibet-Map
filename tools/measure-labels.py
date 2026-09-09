@@ -19,20 +19,24 @@ with sync_playwright() as pw:
     pg.wait_for_timeout(400)
     out=pg.evaluate("""()=>{
       const res={labels:{},obstacles:[]};
-      // range label sizes, in SVG user units, independent of where they sit
-      // Latin name sizes for every feature the placer positions. In "both"
-      // mode a Tibetan name sits under it, so the pair is measured as one box.
-      const pair=(e)=>{const bb=e.getBBox(); return {w:bb.width,h:bb.height};};
-      document.querySelectorAll('.tm-rglab,.tm-hylab,.tm-pklab').forEach(e=>{
-        if(e.classList.contains('tm-rgbo')||e.classList.contains('tm-hybo')
-           ||e.classList.contains('tm-pkbo')) return;
-        res.labels[e.textContent.trim()]=pair(e);});
-      document.querySelectorAll('.tm-rgbo,.tm-hybo,.tm-pkbo').forEach(e=>{
-        // widen the recorded box to cover whichever of the two names is longer
-        const t=e.previousElementSibling && e.previousElementSibling.textContent.trim();
-        if(!t||!res.labels[t]) return;
-        const bb=e.getBBox();
-        res.labels[t]={w:Math.max(res.labels[t].w,bb.width), h:res.labels[t].h+13};});
+      // Measure the box the map actually draws: the whole label group, which in
+      // "both" mode is the Latin name with the Tibetan one under it.
+      //
+      // This used to be measured as the Latin <text> alone, widened afterwards
+      // by pairing each Tibetan run with e.previousElementSibling.  That pairing
+      // stopped finding anything the moment bilabel() wrapped the Tibetan run in
+      // a .tm-boslot group -- the sibling is the slot, not the Latin name -- so
+      // the widening silently never fired and every placement since has been
+      // searched against a box half its real height and, where the Tibetan name
+      // is the longer of the two, narrower than what is drawn.  Taking the
+      // group's own bounding box cannot come apart that way: it is one
+      // measurement of the thing on screen rather than two measurements and an
+      // assumption about the DOM between them.
+      document.querySelectorAll('[data-feat]').forEach(g=>{
+        const en=g.querySelector('.tm-en-only');
+        if(!en) return;
+        const bb=g.getBBox();
+        res.labels[en.textContent.trim()]={w:bb.width,h:bb.height};});
       // Everything a feature name must avoid, as boxes in viewBox units.
       // Positions come from the element's own screen matrix rather than
       // getBBox plus a parsed transform attribute: the Kham title is moved
@@ -57,7 +61,7 @@ with sync_playwright() as pw:
         push(e,k);});
       return res;}""")
     json.dump(out, open(os.path.join(HERE, 'measured.json'), 'w'))
-    print("range labels measured: %d"%len(out['labels']))
+    print("labels measured: %d"%len(out['labels']))
     for k,v in out['labels'].items(): print("   %-20s %6.1f x %4.1f SVG units"%(k,v['w'],v['h']))
     print("obstacles: %d"%len(out['obstacles']))
     b.close()

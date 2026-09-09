@@ -56,10 +56,14 @@ def corners(cx, cy, w, h, ang):
 
 
 def label_quad(anchor, ang, w, h, dy):
+    """The box the name occupies, pushed dy off its anchor along the
+    perpendicular.  The box's top edge is bp.ASC above the baseline the anchor
+    sits on, so its middle is h/2 below that -- which for the two-line box the
+    map actually draws falls *below* the baseline, not above it."""
     a = math.radians(ang)
-    cx = anchor[0] - dy * math.sin(a) + (h * 0.30) * math.sin(a)
-    cy = anchor[1] + dy * math.cos(a) - (h * 0.30) * math.cos(a)
-    return corners(cx, cy, w + PAD * 2, h + PAD * 2, ang)
+    off = dy - bp.ASC + h / 2.0
+    return corners(anchor[0] - off * math.sin(a), anchor[1] + off * math.cos(a),
+                   w + PAD * 2, h + PAD * 2, ang)
 
 
 def overlap(A, B):
@@ -102,31 +106,50 @@ FEATURES = ([(g['en'], 'range',
              or [r for r in bp.rings_of(g.get('dFull', '')) if len(r) > 1])
             for g in DATA['ranges']] +
             [(r['en'], 'river', bp.rings_of(r['d'])) for r in DATA['rivers']] +
+            [(l['en'], 'lake', bp.rings_of(l['d'])) for l in DATA['lakes']] +
             [(k['en'], 'peak', [[tuple(k['p'])]]) for k in DATA['peaks']])
 
-# A peak is a point, so its name is tried on a ring of positions round the
-# marker rather than slid along a line.  This is what moves Chomolungma off
-# the Himalayan crest, which its fixed "below the marker" position sat on.
-PEAK_SPOTS = [(dx, dy) for r in (14, 24, 38, 54)
+# A name that is not slid along a line is tried on a ring of positions round its
+# anchor instead: a peak, which is a point, and a lake too small to hold its own
+# name, which is every lake on this map.  This is what moves Chomolungma off the
+# Himalayan crest, which its fixed "below the marker" position sat on.
+RING_SPOTS = [(dx, dy) for r in (14, 20, 24, 38, 54)
               for dx, dy in ((0, r), (0, -r), (r, 6), (-r, 6),
                              (r * 0.7, -r * 0.7), (-r * 0.7, -r * 0.7),
                              (r * 0.7, r * 0.7), (-r * 0.7, r * 0.7))
               if math.hypot(dx, dy) <= bp.OFFSET_CAP]
 
+# Anchors for the fixed obstacles, so the gate arithmetic below can ask where a
+# town's name will be at a given zoom.  A town's name hangs off its dot and the
+# dot is what scales, so the dot is the anchor, not the middle of the box.
+OB_ANCHOR = {}
+for _c in DATA['cities']:
+    OB_ANCHOR[_c['name']] = tuple(_c['p'])
+    OB_ANCHOR[_c['bo']] = tuple(_c['p'])
+for _c in DATA['countryLabels']:
+    OB_ANCHOR[_c['name']] = tuple(_c['p'])
+
+
 def place_one(name, kind, runs, others):
     """Best position for one label given every other label's current box."""
     w, h = SIZE[name]['w'], SIZE[name]['h']
-    if kind == 'peak':
-        px, py = runs[0][0]
-        cands = [({'p': (px + dx, py + dy), 'a': 0.0}, 0, (dx, dy)) for dx, dy in PEAK_SPOTS]
+    # Where the name may attach is the anchor strategy's answer, not this
+    # file's: bp.anchors() returns the set of honest anchors for the kind of
+    # thing this feature is.  What is searched here is the offset -- how far
+    # off the anchor the type sits, and which way round.
+    if kind in ('peak', 'lake'):
+        anchor, = bp.anchors(kind, runs[0][0] if kind == 'peak' else runs, SIZE[name])
+        px, py = anchor['p']
+        # A name its own shape can hold sits in the middle of it and goes
+        # nowhere; everything else goes round the outside on the ring.  Whether
+        # a name may sit on its feature at all is bp.ON_FEATURE, and whether
+        # this one actually fits is the strategy's `inside`.  A lake that fits
+        # would be the most constrained label on the map: exactly one position.
+        spots = [(0, 0)] if bp.ON_FEATURE[kind] and anchor['inside'] else RING_SPOTS
+        cands = [({'p': (px + dx, py + dy), 'a': 0.0}, 0, (dx, dy)) for dx, dy in spots]
     else:
-        runs = [r for r in runs if len(r) > 1]
-        cands = []
-        for dy in DYS:
-            for f in FRACS:
-                lab = bp.label_anchor(runs, f)
-                if lab:
-                    cands.append((lab, dy, (f, dy)))
+        aset = bp.anchors(kind, [r for r in runs if len(r) > 1], SIZE[name], fracs=FRACS)
+        cands = [(a, dy, (a['frac'], dy)) for dy in DYS for a in aset]
     best = None
     for lab, dy, key in cands:
         if True:
@@ -139,13 +162,13 @@ def place_one(name, kind, runs, others):
                 cost += 4000
             if name in GANG and not bp.inside(KHAM, cx, cy):
                 cost += 150
-            if kind == 'peak':
-                cost += (abs(key[0]) + abs(key[1])) * 1.2   # prefer close to the marker
+            if kind in ('peak', 'lake'):
+                cost += (abs(key[0]) + abs(key[1])) * 1.2   # prefer close to the feature
             else:
                 # gentle: clearing a real overlap must beat hugging the crest
                 cost += abs(key[0] - 0.5) * 6 + abs(abs(dy) - 9) * 0.7
             if best is None or cost < best[0]:
-                best = (cost, key, Q)
+                best = (cost, key, Q, tuple(lab['p']))
     return best
 
 
@@ -156,10 +179,11 @@ for n, k, r in FEATURES:
 
 boxes, chosen = {}, {}
 order = sorted(ITEMS, key=lambda r: -SIZE[r[0]]['w'])
+anchor_of, kind_of = {}, {n: k for n, k, _ in ITEMS}
 for name, kind, runs in order:                       # first pass, largest first
     got = place_one(name, kind, runs, [boxes[k] for k in boxes])
     if got:
-        chosen[name] = list(got[1]); boxes[name] = got[2]
+        chosen[name] = list(got[1]); boxes[name] = got[2]; anchor_of[name] = got[3]
 
 for sweep in range(6):                               # refine until settled
     resid = {n: sum(overlap(boxes[n], q) * wt for _, q, wt in OB)
@@ -178,9 +202,74 @@ for sweep in range(6):                               # refine until settled
         after = sum(overlap(got[2], q) * wt for _, q, wt in OB) \
               + sum(overlap(got[2], boxes[m]) for m in boxes if m != name)
         if after < resid[name] - 1e-9:
-            chosen[name] = list(got[1]); boxes[name] = got[2]; moved = True
+            chosen[name] = list(got[1]); boxes[name] = got[2]
+            anchor_of[name] = got[3]; moved = True
     if not moved:
         break
+
+# ---------------------------------------------------------------- tier gates
+#
+# Two boxes that touch at fit zoom do not touch for ever.  Type holds its size
+# on screen while the map grows under it, so the distance between two anchors
+# scales with k while the boxes do not: every collision comes apart at some
+# zoom, and the only question is which name waits and until when.
+#
+# Which name waits is the tier -- a first-tier name is entitled to its place,
+# not to a longer leash, so it never stands down.  The loser is not moved: it is
+# not drawn until the zoom that has room for it, which is the whole point of the
+# offset cap being hard.  Everything here is reported for a person to copy into
+# GATES in build-physical.py; nothing is decided at run time.
+REAL = 4.0     # squared depth: below this two boxes graze, they do not collide
+
+
+def shifted(Q, anchor, k):
+    """Where zoom k puts a box: its anchor scales with the map and its own size
+    does not, so the whole box travels (k-1) times the anchor."""
+    return [(x + (k - 1) * anchor[0], y + (k - 1) * anchor[1]) for x, y in Q]
+
+
+def clears_at(Q, aq, R, ar):
+    """The first zoom on the ladder at which two boxes come apart."""
+    for k in bp.GATE_LADDER:
+        if overlap(shifted(Q, aq, k), shifted(R, ar, k)) <= 0:
+            return k
+    return None
+
+
+def ob_anchor(o):
+    return OB_ANCHOR.get(o['t'], (o['x'] + o['w'] / 2, o['y'] + o['h'] / 2))
+
+
+gates, standing = {}, set(boxes)
+while True:
+    worst = None
+    for n in standing:
+        for m in standing:
+            if m <= n:
+                continue
+            d = overlap(boxes[n], boxes[m])
+            if d > REAL and (worst is None or d > worst[0]):
+                # the higher tier number yields; between equals, the one already
+                # carrying more overlap elsewhere is the one under more pressure
+                a, b = sorted((n, m), key=lambda x: (bp.TIERS[kind_of[x]],
+                                                     sum(overlap(boxes[x], boxes[y])
+                                                         for y in standing if y != x)))
+                worst = (d, b, a)
+        for o, q, wt in OB:
+            d = overlap(boxes[n], q)
+            if d > REAL and (worst is None or d > worst[0]):
+                worst = (d, n, o['t'])      # a town or a country never yields
+    if not worst:
+        break
+    _, loser, against = worst
+    other = boxes.get(against)
+    k = clears_at(boxes[loser], anchor_of[loser], other, anchor_of[against]) \
+        if other is not None else \
+        min([clears_at(boxes[loser], anchor_of[loser], q, ob_anchor(o))
+             for o, q, wt in OB if o['t'] == against and
+             clears_at(boxes[loser], anchor_of[loser], q, ob_anchor(o))] or [None])
+    gates[loser] = k or bp.GATE_LADDER[-1]
+    standing.discard(loser)
 
 total = 0.0
 for name, kind, runs in order:
@@ -193,8 +282,22 @@ for name, kind, runs in order:
     hits = [o['t'][:16] for o, q, wt in OB if overlap(Q, q) > 0] + \
            [m for m in boxes if m != name and overlap(Q, boxes[m]) > 0]
     print('  %-20s %-6s %-18s overlap %6.1f  %s'
-          % (name, kind, ('dx %+d dy %+d' % key) if kind == 'peak'
+          % (name, kind, ('dx %+d dy %+d' % key) if kind in ('peak', 'lake')
              else ('frac %.2f dy %+d' % key), r,
              ('hits: ' + ', '.join(hits)) if hits else 'clear'))
 print('\n  total residual overlap: %.1f'% total)
+# The number that matters is the one the reader sees.  A name that stands down
+# is not on the map at fit zoom, and neither is its overlap -- nor the overlap
+# it was causing everybody else.
+seen = sum(sum(overlap(boxes[n], q) * wt for _, q, wt in OB)
+           + sum(overlap(boxes[n], boxes[m]) for m in standing if m != n)
+           for n in standing)
+print('  of which visible at fit zoom: %.1f  (%d of %d names drawn)'
+      % (seen, len(standing), len(boxes)))
+if gates:
+    print('\n  tier gates -- copy into GATES in build-physical.py:')
+    for n, k in sorted(gates.items()):
+        print('      %-20s tier %d, stands down until %gx' % (n, bp.TIERS[kind_of[n]], k))
+else:
+    print('\n  no name has to stand down at fit zoom')
 json.dump(chosen, open(os.path.join(HERE, 'placement.json'), 'w'))
