@@ -377,13 +377,23 @@ TIERS = {
 # their size on screen while the map grows under them, so every collision clears
 # eventually and the only question is when.
 #
-# Namcha Barwa is the peak at the Yarlung Tsangpo's great bend, where the
-# river's name and Pobar Gang were already competing before the lakes arrived.
-# It is tier 3 against two tier-2 names, so it is the one that stands down.
+# These three are not the three that stood down before the lakes were named.
+# Yamdrok Tso's name, two lines tall now, no longer fits anywhere within the cap
+# around a lake hemmed in by Lhasa to the north and the Yarlung Tsangpo across
+# its middle, so it takes the Himalayan crest -- and the Himalaya, placed after
+# it, is left with nowhere clear but the far western end of its own spine, where
+# it grazes NEPAL.  Langchen Khabab yields in the same way to Mapham Yutso.
+#
+# Which name wins that ground is decided by nothing editorial: place-labels.py
+# fills the map largest name first, so a lake beats a range for the same crest
+# by being the wider of the two.  TIERS decides who yields once the arrangement
+# is settled, but it has no say in how the arrangement was reached.  That is
+# worth revisiting -- see the note in tools/README.md -- and it is a change to
+# the placer, not to these numbers, which are read off it as they have to be.
 GATES = {
     'Duldza Zalmo Gang': 3,
-    'Mapham Yutso': 3,
-    'Yamdrok Tso': 3,
+    'Himalaya': 1.5,
+    'Langchen Khabab': 1.5,
 }
 GATE_LADDER = (1.5, 3.0)
 
@@ -733,13 +743,13 @@ def to_path(runs, closed=False):
 # carry (Brahmaputra, Mekong, Yangtze ...) are not shown on the map.  The last
 # two numbers are where the label sits along the course and how far off it.
 RIVERS = [
-    ('ཡར་ཀླུང་གཙང་པོ་', 'Yarlung Tsangpo', ['Maquan', 'Yarlung', 'Dihang', 'Brahmaputra'], 1, 0.72, 11),
+    ('ཡར་ཀླུང་གཙང་པོ་', 'Yarlung Tsangpo', ['Maquan', 'Yarlung', 'Dihang', 'Brahmaputra'], 1, 0.74, -10),
     ('རྨ་ཆུ་',           'Ma Chu',          ['Huang'],                                     1, 0.5, 8),
     ('འབྲི་ཆུ་',          'Drichu',          ['Tuotuo', 'Tongtian', 'Jinsha', 'Chang Jiang'],1, 0.88, -10),
     ('རྫ་ཆུ་',           'Za Qu',           ['Za', 'Lancang', 'Mekong'],                   1, 0.04, -10),
     ('རྒྱ་མོ་རྔུལ་ཆུ་',    'Gyalmo Ngulchu',  ['Nu', 'Salween'],                             1, 0.48, -10),
     ('སེང་གེ་ཁ་འབབ་',    'Sangge Khabab',   ['Shiquan', 'Indus'],                          1, 0.86, -19),
-    ('གླང་ཆེན་ཁ་འབབ་',   'Langchen Khabab', ['Sutlej'],                                    0, 0.22, 20),
+    ('གླང་ཆེན་ཁ་འབབ་',   'Langchen Khabab', ['Sutlej'],                                    0, 0.22, 8),
     # Macha Khabab is left out: Natural Earth's Ghaghara segment begins at the
     # border, so only about 15 px of it falls inside Tibet -- too little to read
     # as a river, while its name crowded the corner where the Sengge and Langchen
@@ -758,12 +768,18 @@ RIVERS = [
 # across the radius, against a name some seventy units wide.  So these names sit
 # beside their water with a connector rather than on it, which is the offset
 # being searched here at all.
+#
+# The Tibetan arriving makes each of these a two-line block, twenty-eight units
+# tall where it was fourteen, and that is not a data edit: it doubles what the
+# most crowded corner of the map has to find room for.  The offsets below are a
+# fresh solve against the taller boxes, not the ones the one-line names were
+# given, and the gates moved with them -- see GATES.
 LAKES = [
-    ('',  'Tso Ngonpo',   'Qinghai Hu',   0, 14),
-    ('',  'Namtso',       'Nam Co',       0, 14),
-    ('',  'Siling Tso',   'Siling Co',    0, 14),
-    ('',  'Yamdrok Tso',  'Yamzho Yumco', 0, -20),
-    ('',  'Mapham Yutso', 'Mapam Yumco',  9.8, -9.8),
+    ('མཚོ་སྔོན་པོ་',       'Tso Ngonpo',   'Qinghai Hu',   0, 14),
+    ('གནམ་མཚོ་',           'Namtso',       'Nam Co',       -9.8, 9.8),
+    ('སེར་གླིང་མཚོ་',      'Siling Tso',   'Siling Co',    0, 14),
+    ('ཡར་འབྲོག་གཡུ་མཚོ་', 'Yamdrok Tso',  'Yamzho Yumco', 0, 14),
+    ('མ་ཕམ་གཡུ་མཚོ་',     'Mapham Yutso', 'Mapam Yumco',  -14, 14),
 ]
 
 # Range spines, west to east (or north to south).  The number after the name is
@@ -790,7 +806,7 @@ LAKES = [
 #
 # (lon, lat), west to east or north to south.
 PEAK_RANGES = [
-    ('ཧི་མ་ལ་སྒང་', 'Himalaya', 0.52, -10, [
+    ('ཧི་མ་ལ་སྒང་', 'Himalaya', 0.06, -19, [
         (74.60, 35.20),   # Nanga Parbat    8125 m
         (76.00, 34.00),   # Nun             7135 m
         (80.00, 30.50),   # Nanda Devi      7817 m
@@ -811,7 +827,7 @@ PEAK_RANGES = [
         (76.51, 35.88),   # K2               8611 m
         (77.80, 35.20),   # Shahi Kangri     6934 m
         (78.50, 33.80)]), # Kangju Kangri    6725 m
-    ('\u0f42\u0f44\u0f66\u0f0b\u0f4f\u0f72\u0f0b\u0f66\u0f7a\u0f0b', 'Gangdise', 0.54, -10, [
+    ('\u0f42\u0f44\u0f66\u0f0b\u0f4f\u0f72\u0f0b\u0f66\u0f7a\u0f0b', 'Gangdise', 0.5, 8, [
         (81.00, 32.80),   # Nganglong Kangri 6720 m
         (81.31, 31.07),   # Gang Rinpoche    6638 m
         (83.50, 30.90),   # anchor
