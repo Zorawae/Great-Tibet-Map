@@ -170,12 +170,19 @@ Any current browser. The widget uses CSS custom properties, container queries
 and `ResizeObserver`, so Chrome/Edge 105+, Firefox 110+ and Safari 16+ are the
 practical floor. No polyfills, no bundler, no runtime dependencies.
 
-The one network request is an optional `@import` of three Google Fonts
-families. **Noto Serif Tibetan is load-bearing:** most systems have no Tibetan
-font, and without it every ཆོལ་ཁ་གསུམ string renders as empty boxes — self-host
-it if you cannot call Google. **Fraunces** (display) and **IBM Plex Sans** (UI)
-are cosmetic; delete the `@import` and they fall back to Georgia and your
-system UI font. Remove the import entirely and the widget is fully offline.
+The one network request is an optional `@import` of two Google Fonts families.
+**Fraunces** (display) and **IBM Plex Sans** (UI) are cosmetic: delete the
+`@import` and they fall back to Georgia and your system UI font, and the widget
+is then fully offline.
+
+**The Tibetan face is embedded, not fetched.** Most systems ship no Tibetan font
+at all, so a fallback list behind a failed fetch is not a fallback — every
+ཆོལ་ཁ་གསུམ string on the map renders as empty boxes. Monlam Uni OuChan2 is
+therefore carried in the file itself, subset by `tools/build-font.py` to the
+characters the map sets and embedded as a WOFF2 data URI. That is about 94 KB,
+and it is why the Tibetan is the one thing on this map that cannot fail to
+render. Add a Tibetan name and re-run that script, or `--check` will tell you
+the subset no longer covers the map.
 
 ## About the boundaries
 

@@ -165,15 +165,21 @@ filtering a list of monasteries, scrolling to a section.
 
 ## Fonts
 
-The widget `@import`s three families from Google Fonts:
+The widget `@import`s two families from Google Fonts:
 
-- **Noto Serif Tibetan** — load-bearing. Most systems have no Tibetan font,
-  and without it every ཆོལ་ཁ་གསུམ string renders as empty boxes. Self-host
-  this one if you can't call Google.
 - **Fraunces** (display) and **IBM Plex Sans** (UI) — cosmetic. Delete the
-  `@import` line and they fall back to Georgia and your system UI font.
+  `@import` line and they fall back to Georgia and your system UI font, and the
+  widget makes no network request at all.
 
-To self-host, remove the `@import` and point `--tm-bo` at your own `@font-face`.
+The Tibetan face is not one of them. **Monlam Uni OuChan2 is embedded in the
+file** as a WOFF2 data URI, subset to the characters the map sets — about 94 KB.
+Most systems ship no Tibetan font, so fetching it would have made half of every
+name on the map depend on a network request that, when it fails, leaves rows of
+empty boxes rather than degraded type. Nothing needs to be self-hosted, and the
+Tibetan renders offline.
+
+To use a different Tibetan face, point `--tm-bo` at your own `@font-face` and
+re-cut the embedded subset with `tools/build-font.py`.
 
 ## Accessibility
 
