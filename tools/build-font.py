@@ -20,6 +20,11 @@ being a picture of the strings it was cut for.
     python3 tools/build-font.py --force    # re-cut regardless
     python3 tools/build-font.py --check    # is the widget's subset still right?
 
+The face itself is not in the repository -- 1.8 MB of it, to produce 70 KB the
+widget then carries inline -- so a re-cut needs a copy fetched from Monlam and
+left at the repository root, in tools/, or named by MONLAM_TTF.  Nothing else
+needs it: the map ships its own subset and renders without it.
+
 Run it after splice-data.py, because the characters to cut for are read out of
 the widget's own DATA plus its markup.  A name added later needs this run again,
 and `--check` is what catches it if the run is forgotten: it reads the embedded
@@ -31,12 +36,15 @@ import base64, io, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WIDGET = os.path.join(HERE, os.pardir, 'tibet-three-regions-map.html')
-# Where to re-cut from.  The face is committed at the repository root, so a
-# fresh clone can run this with no arguments; tools/ is checked too, for a copy
-# dropped in beside this script, and MONLAM_TTF overrides both.
+# Where to re-cut from.  The face itself is not committed: it is 1.8 MB, and
+# what the widget needs -- the subset -- is already in the widget, so carrying
+# the whole of it in the repository would be 1.8 MB nobody fetches.  Drop a copy
+# at the repository root or in tools/, or point MONLAM_TTF at one, and this
+# finds it.  Only a re-cut needs it; the map does not.
+SOURCE_NAME = 'MonlamUniOuchan2.ttf'
 CANDIDATES = [os.environ.get('MONLAM_TTF'),
-              os.path.join(HERE, os.pardir, 'MonlamUniOuchan2.ttf'),
-              os.path.join(HERE, 'MonlamUniOuchan2.ttf')]
+              os.path.join(HERE, os.pardir, SOURCE_NAME),
+              os.path.join(HERE, SOURCE_NAME)]
 
 
 def source():
@@ -63,8 +71,15 @@ def cut(chars):
     src = source()
     if not src:
         raise SystemExit(
-            'no MonlamUniOuchan2.ttf found.  Looked at the repository root and\n'
-            'in tools/; set MONLAM_TTF to point somewhere else.')
+            'no %s to cut from.\n\n'
+            'The face is deliberately not committed -- it is 1.8 MB, and the\n'
+            'subset the widget needs is already embedded in the widget.  Only a\n'
+            're-cut needs the original, so fetch it from Monlam and put it at the\n'
+            'repository root or in tools/, or point MONLAM_TTF at it:\n\n'
+            '    MONLAM_TTF=/path/to/%s python3 tools/build-font.py\n\n'
+            'Nothing about the map is broken meanwhile: `--check` reports whether\n'
+            'the embedded subset still covers every character the map sets.'
+            % (SOURCE_NAME, SOURCE_NAME))
     font = TTFont(src)
     opts = subset.Options()
     opts.layout_features = ['*']      # keep ccmp/abvs/blws: the shaping IS the font

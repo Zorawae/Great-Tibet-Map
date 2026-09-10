@@ -1,0 +1,4 @@
+
+# The Tibetan face: 1.8 MB, fetched on demand to re-cut the embedded subset
+# (tools/build-font.py). The widget carries the subset itself and needs no copy.
+MonlamUniOuchan2.ttf

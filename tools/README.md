@@ -17,6 +17,13 @@ each and are not committed; fetch them into this directory first:
     curl -O $B/ne_10m_rivers_lake_centerlines.geojson
     curl -O $B/ne_10m_lakes.geojson
 
+The Tibetan face is the same kind of thing: `tools/build-font.py` cuts the
+subset the widget embeds out of Monlam Uni OuChan2, which is 1.8 MB and is not
+committed either. Only a re-cut needs it -- the widget carries the subset and
+renders without it -- so fetch a copy from Monlam and leave it at the repository
+root, in this directory, or wherever `MONLAM_TTF` points. The script says as
+much if it cannot find one, and `--check` works without it.
+
 Then, from the repository root:
 
     python3 tools/build-physical.py > physical.json
