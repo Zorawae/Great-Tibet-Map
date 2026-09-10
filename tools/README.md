@@ -21,7 +21,18 @@ Then, from the repository root:
 
     python3 tools/build-physical.py > physical.json
 
-The output is spliced into `var DATA = {...}` in `tibet-three-regions-map.html`.
+The output is spliced into `var DATA = {...}` in `tibet-three-regions-map.html`
+by `splice-data.py`, which replaces only the four physical keys and leaves the
+outline, regions, towns and country names exactly as it found them:
+
+    python3 tools/build-physical.py | python3 tools/splice-data.py
+
+`--check` reports whether the widget already matches the build without writing
+anything, which is the cheapest proof the pipeline is still faithful: a
+regeneration against unchanged tables has to be a no-op.
+
+    python3 tools/build-physical.py | python3 tools/splice-data.py --check
+
 Range crests and peaks are listed in the script itself rather than taken from
 Natural Earth, which ships no range centrelines; they carry the labels and are
 not a claim about exact extent.
@@ -259,3 +270,48 @@ physical names were set smaller instead -- 11.5 to 9.5px for the ranges, 13.5 to
 11 for the water, with the Tibetan line coming up to match -- which is the trade
 the author had already allowed for names that overlap, since the map zooms. That
 took it to 374.6, of which 6.0 is between names actually drawn.
+
+## What naming the lakes revealed
+
+The five lakes were the last physical features carrying a Latin name only.
+Giving them their Tibetan makes each a two-line block -- twenty-eight units tall
+where it was fourteen -- and the map was re-solved against the taller boxes.
+Total residual overlap fell from 374.6 to 275.3 and what a reader sees at fit
+zoom is unchanged at 6.0, with 26 of 29 names drawn. But two things came out of
+it that are not settled.
+
+**Placement order is by width; yielding is by tier.** The placer fills the map
+largest name first and never reconsiders a name that is not itself overlapped.
+Yamdrok Tso sits in the most crowded corner on the map -- Lhasa to the north,
+the Yarlung Tsangpo across its middle, the Himalayan crest to the south -- and
+once its name is two lines tall, no position on the ring clears all three within
+`OFFSET_CAP`. Being the wider name, it is placed first and takes the crest; the
+Himalaya, reached later, is left with nowhere clear but the far west end of its
+own spine, and stands down until 1.5x. Langchen Khabab yields to Mapham Yutso
+the same way.
+
+`TIERS` was meant to decide who stands down, and it does -- but only once the
+arrangement is settled. It has no say in how the arrangement is reached, so a
+lake can take a major range's crest on nothing but being twenty units wider.
+Making the search tier-aware, or letting the refinement sweep move the name
+*causing* an overlap rather than only the one suffering it, would change the
+answer here. Both are changes to the placer, not to the tables.
+
+**Connectors do not survive a two-line box.** `has_tick()` asks whether a tick
+would have any length at all, and within a 21-unit cap a 28-unit box leaves
+almost none: the seven connectors the map now draws measure 0.2, 0.2, 0.7, 0.8,
+0.8, 0.8 and 6.6 units. The build believes it is drawing a tie; the renderer
+draws a dot. The names all sit close enough to their features to read without
+one, which is why this is not visible as a fault, but the mechanism is
+effectively inert and `has_tick()` should probably be asking for a usable
+length rather than a positive one.
+
+**The Tibetan measurements are made without the Tibetan font.** The sandbox
+cannot fetch the Google Fonts stylesheet and ships no Tibetan face, so every
+Tibetan run measures as fallback boxes. Installing Noto Serif Tibetan and
+re-measuring shows the widths are almost all unaffected -- the Latin line is the
+wider of the two for every name but Himalaya, which narrows 51.7 to 49.2 -- but
+the *heights* are not: a two-line block measures 23.3 units without the font and
+34.3 with it. Every placement this repository has ever shipped was solved
+against boxes some eleven units shorter than a reader with the font actually
+sees. That is a whole-map re-solve and was left alone here.
