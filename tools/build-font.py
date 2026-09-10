@@ -16,7 +16,8 @@ characters through the font's own GSUB closure, so the Tibetan still *shapes*
 -- subjoined consonants stack, vowel signs sit where they belong -- rather than
 being a picture of the strings it was cut for.
 
-    python3 tools/build-font.py            # re-cut and re-embed
+    python3 tools/build-font.py            # re-cut if the map needs characters
+    python3 tools/build-font.py --force    # re-cut regardless
     python3 tools/build-font.py --check    # is the widget's subset still right?
 
 Run it after splice-data.py, because the characters to cut for are read out of
@@ -30,10 +31,19 @@ import base64, io, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WIDGET = os.path.join(HERE, os.pardir, 'tibet-three-regions-map.html')
-# The upstream face is not committed: it is 1.8 MB, and what the widget needs
-# is the subset, which is.  Point this at the file to re-cut from.
-SOURCE = os.environ.get('MONLAM_TTF',
-                        os.path.join(HERE, 'MonlamUniOuchan2.ttf'))
+# Where to re-cut from.  The face is committed at the repository root, so a
+# fresh clone can run this with no arguments; tools/ is checked too, for a copy
+# dropped in beside this script, and MONLAM_TTF overrides both.
+CANDIDATES = [os.environ.get('MONLAM_TTF'),
+              os.path.join(HERE, os.pardir, 'MonlamUniOuchan2.ttf'),
+              os.path.join(HERE, 'MonlamUniOuchan2.ttf')]
+
+
+def source():
+    for p in CANDIDATES:
+        if p and os.path.exists(p):
+            return p
+    return None
 FAMILY = 'Monlam Uni OuChan2'
 TIBETAN = range(0x0F00, 0x1000)
 # The @font-face this writes, matched whole so a re-run replaces it rather than
@@ -50,12 +60,12 @@ def cut(chars):
     """Subset the face to `chars` and return it as WOFF2 bytes."""
     from fontTools import subset
     from fontTools.ttLib import TTFont
-    if not os.path.exists(SOURCE):
+    src = source()
+    if not src:
         raise SystemExit(
-            'no %s.\nThe upstream face is not committed -- it is 1.8 MB and only\n'
-            'the subset belongs in the repository.  Put MonlamUniOuchan2.ttf in\n'
-            'tools/, or point MONLAM_TTF at it, and run this again.' % SOURCE)
-    font = TTFont(SOURCE)
+            'no MonlamUniOuchan2.ttf found.  Looked at the repository root and\n'
+            'in tools/; set MONLAM_TTF to point somewhere else.')
+    font = TTFont(src)
     opts = subset.Options()
     opts.layout_features = ['*']      # keep ccmp/abvs/blws: the shaping IS the font
     # TrueType hinting, and the device tables that go with it, are for small
@@ -74,6 +84,19 @@ def cut(chars):
     buf = io.BytesIO()
     font.save(buf)
     return buf.getvalue()
+
+
+def embedded(src):
+    """The characters the widget's embedded subset can set, or None if there
+    is no subset in it yet."""
+    from fontTools.ttLib import TTFont
+    m = BLOCK.search(src)
+    if not m:
+        return None
+    hit = re.search(r'base64,([A-Za-z0-9+/=]+)\)', m.group(0))
+    if not hit:
+        return None
+    return set(TTFont(io.BytesIO(base64.b64decode(hit.group(1)))).getBestCmap())
 
 
 def face_css(woff2, chars):
@@ -97,20 +120,29 @@ def main():
     if not chars:
         raise SystemExit('the widget sets no Tibetan at all -- nothing to cut for')
 
+    have = embedded(src)
+    missing = [c for c in chars if have is not None and ord(c) not in have]
+
     if check:
-        m = BLOCK.search(src)
-        if not m:
+        if have is None:
             print('no embedded Tibetan face in the widget'); return 1
-        from fontTools.ttLib import TTFont
-        b64 = re.search(r'base64,([A-Za-z0-9+/=]+)\)', m.group(0)).group(1)
-        have = set(TTFont(io.BytesIO(base64.b64decode(b64))).getBestCmap())
-        missing = [c for c in chars if ord(c) not in have]
         if missing:
             print('the embedded subset is missing %d character(s) the widget sets: %s'
                   % (len(missing), ' '.join('U+%04X' % ord(c) for c in missing)))
             return 1
         print('the embedded subset covers all %d Tibetan characters the widget sets'
               % len(chars))
+        return 0
+
+    # WOFF2 is not byte-stable: the same characters cut from the same file twice
+    # give two blobs that differ in a handful of header bytes.  Rewriting on
+    # every run would put a 94 KB base64 diff in front of a reviewer to say
+    # nothing at all, so the re-cut happens when the coverage actually changed
+    # -- which is the only thing about it that can.  --force re-cuts anyway,
+    # for a new source file with the same repertoire.
+    if have is not None and not missing and '--force' not in sys.argv[1:]:
+        sys.stderr.write('unchanged: the embedded subset already covers all %d '
+                         'characters the widget sets (--force to re-cut)\n' % len(chars))
         return 0
 
     woff2 = cut(chars)
