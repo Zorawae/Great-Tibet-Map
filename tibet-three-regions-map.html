@@ -181,6 +181,10 @@
    blank band or a hard cut at the map's edge; the stage clips the sideways spill. */
 .tibmap__stage{position:relative;background:var(--tm-bg);min-width:0;overflow:hidden;}
 .tibmap__svg{display:block;width:100%;height:100%;overflow:visible;}
+/* Which of the two type regimes is live. The breakpoint that decides it is a
+   container query and belongs in this sheet; the script only reads the answer
+   back off the SVG, so the width is never written down twice. */
+.tibmap__svg{--tm-small:0;}
 
 /* ── zoom and pan ────────────────────────────────────────── */
 /* touch-action decides who gets the gesture. At fit zoom there is nothing to
@@ -226,10 +230,17 @@
 }
 .tibmap__zrange::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;background:var(--tm-gold);}
 .tibmap__zrange:focus-visible{outline:2px solid var(--tm-gold);outline-offset:3px;}
+/* The zoom column lies down on a small container, and the slider steps out of
+   it.  Standing up it is some 190px tall, which on a phone is two thirds of the
+   map's height in a strip down the eastern edge -- and the eastern edge is
+   where the map is busiest: Dartsedo is set eastward off a dot near the right
+   margin, and at a size anyone can read its tail ran in behind the column.  A
+   row of three buttons in the corner is 30px tall and clears every name; the
+   slider is the one control a phone does not need, since pinch zooms and the
+   buttons step, and it is the whole of the column's height. */
 @container (max-width:760px){
-  .tibmap__zoom{right:8px;bottom:8px;gap:5px;}
-  .tibmap__zslot{height:84px;}
-  .tibmap__zrange{width:74px;}
+  .tibmap__zoom{right:8px;bottom:8px;flex-direction:row;gap:6px;}
+  .tibmap__zslot{display:none;}
 }
 
 /* ── map layers ──────────────────────────────────────────── */
@@ -359,33 +370,6 @@
 
 .tibmap__sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 
-/* ── small containers: bigger map type, less clutter ─────── */
-@container (max-width:760px){
-  .tibmap__head{padding:20px 18px 16px;}
-  .tibmap__foot{padding:12px 18px 16px;gap:8px 14px;}
-  .tibmap__note{padding:0 18px 20px;}
-  .tibmap__pbody{padding:20px 18px;}
-  .tibmap__seg s{display:none;}
-  .tibmap__seg u{font-size:10.5px;letter-spacing:.1em;}
-  .tibmap .tm-rname{font-size:60px;stroke-width:7px;}
-  .tibmap .tm-rbo{font-size:50px;stroke-width:7px;}
-  .tibmap .tm-k-C{font-size:30px;letter-spacing:.16em;}
-  .tibmap .tm-k-c{display:none;}
-  .tibmap .tm-cname{font-size:31px;stroke-width:6px;}
-  .tibmap .tm-hylab{font-size:24px;stroke-width:7px;}
-  .tibmap .tm-rglab{font-size:20px;stroke-width:7px;letter-spacing:.05em;}
-  .tibmap .tm-pklab{font-size:19px;stroke-width:7px;}
-  .tibmap .tm-insetlayer{display:none;}
-  .tibmap .tm-city{r:6;}
-  .tibmap .tm-cityring{r:13;stroke-width:2;}
-  .tibmap .tm-cityitem[data-key="0"]{display:none;}
-  .tibmap .tm-cbo{display:none;}
-  .tibmap .tm-k-p{display:none;}
-  .tibmap .tm-rbo{transform:translateY(26px);}
-  .tibmap .tm-region{stroke-width:2;}
-  .tibmap .tm-outline{stroke-width:3.4;}
-  .tibmap .tm-admin{stroke-width:2.4;stroke-dasharray:11 8;}
-}
 /* Physical geography. Both layers are off by default: the map is about the
    three regions first, and rivers and ranges are context you opt into. */
 .tibmap .tm-hydro,.tibmap .tm-relief{display:none;}
@@ -423,7 +407,18 @@
    to be underlapped and are excluded from the collision set entirely, so no
    arrangement depends on their size, and they are the one thing on the map the
    labelling layer was asked to leave exactly as it is. */
-.tibmap .tm-cs{transform:scale(calc(1 / var(--tm-k,1)));}
+/* --tm-mag is the second factor on the same group, and the only thing that
+   changes the size of map type on a phone.  A name is unreadable there not
+   because it is set too small but because the whole drawing is scaled down --
+   the map is 1180 units wide and the glass is 390 -- and everything that was
+   solved against the type, the halo widths, the line-height step under each
+   Latin name, the gap a connector tick stops short by, was solved in those same
+   units.  Magnifying the type alone would have pulled all of that apart, so the
+   magnification goes on .tm-cs instead and lifts the entire typographic layer
+   at once: every proportion inside it survives, and the anchors, the coastline
+   and the region fills are untouched.  It is 1 on a wide container, so nothing
+   below that breakpoint moves. */
+.tibmap .tm-cs{transform:scale(calc(var(--tm-mag,1) / var(--tm-k,1)));}
 /* A name that lost its place at fit zoom waits for the zoom that has room for
    it, and fades in there rather than appearing.  Which name that is was decided
    at build time and carried in DATA as `minK`; nothing is chosen here. */
@@ -458,6 +453,100 @@
   letter-spacing:.02em;text-anchor:middle;pointer-events:none;
   paint-order:stroke;stroke:var(--tm-bg);stroke-opacity:.88;stroke-width:4.5px;
   stroke-linejoin:round;}
+/* ── small containers: bigger map type, less clutter ─────── */
+/* This block used to set one larger size per name and leave it there, which was
+   right for the container it was written against and wrong for every narrower
+   one: the map is drawn in 1180 viewBox units and fitted to the stage, so a
+   size in those units arrives on the glass multiplied by the stage's width over
+   1180.  On a 700px container that is .59 and a 31-unit town name reads at 18px;
+   on a 390px phone it is .33 and the same name reads at 10, and on a 320px one
+   at 8.  The step was a constant and the shrinkage it had to answer was not.  So
+   the sizes here are stated in the pixels they should reach the reader at and
+   converted with --tm-px -- the user-units-per-CSS-pixel the script measures off
+   the SVG's own screen matrix -- which holds them at that size on any phone,
+   while the floors keep the widest containers this block covers looking exactly
+   as they did.
+
+   And it comes last on purpose.  A container query carries no specificity of
+   its own, so every rule in it is settled by source order against the plain
+   rules above -- and where the block used to sit, halfway up the sheet, the
+   physical names were styled below it and quietly beat the sizes it set for
+   them.  The rivers and the ranges were at their desktop type on a phone, which
+   is why they were the worst of it: eleven units, three pixels and a half. */
+@container (max-width:760px){
+  .tibmap__svg{
+    --tm-small:1;
+    /* The region titles, sized in the world rather than in the type layer. */
+    --tm-rn:max(60px, calc(24px * var(--tm-px,1)));
+    --tm-rbn:max(50px, calc(20px * var(--tm-px,1)));
+  }
+  .tibmap__head{padding:20px 18px 16px;}
+  .tibmap__foot{padding:12px 18px 16px;gap:8px 14px;}
+  .tibmap__note{padding:0 18px 20px;}
+  .tibmap__pbody{padding:20px 18px;}
+  .tibmap__seg s{display:none;}
+  .tibmap__seg u{font-size:10.5px;letter-spacing:.1em;}
+  /* The titles are display type and are deliberately outside .tm-cs, so they do
+     not take --tm-mag and are measured here instead.  The Tibetan line's step
+     has to track the Latin one's size or the two collide once it grows: 30 of
+     those units are already on its y attribute and the remainder rides here. */
+  .tibmap .tm-rname{font-size:var(--tm-rn);stroke-width:calc(var(--tm-rn) * .115);}
+  .tibmap .tm-rbo{font-size:var(--tm-rbn);stroke-width:calc(var(--tm-rn) * .115);
+    transform:translateY(calc(var(--tm-rn) * .93 - 30px));}
+  /* Everything else on the map is inside .tm-cs and has already been magnified
+     as one block by --tm-mag.  What is left to say here is only where the
+     hierarchy itself differs on a phone: the neighbours' names step back, being
+     context rather than content, and the tracking comes in with them so that
+     PAKISTAN, which is set near the western edge, still fits on the map ... */
+  .tibmap .tm-k-C{font-size:13px;letter-spacing:.08em;}
+  .tibmap .tm-k-c{display:none;}
+  .tibmap .tm-k-p{display:none;}
+  /* ... and the physical names close most of the gap the desktop sheet leaves
+     between them and the water, since down here the difference between reading
+     a name and deciphering it is worth more than the rank the smaller size was
+     expressing.  They stay under the towns: a river is context for a place. */
+  .tibmap .tm-hylab{font-size:12px;font-weight:500;}
+  .tibmap .tm-rglab,.tibmap .tm-pklab{font-size:11px;letter-spacing:.05em;}
+  .tibmap .tm-hybo{font-size:12px;}
+  .tibmap .tm-rgbo,.tibmap .tm-pkbo{font-size:10.5px;}
+  /* Contrast, where the name is the thing standing on a saturated fill: the
+     halo widths themselves need no help, being inside .tm-cs and magnified with
+     the type they surround. */
+  .tibmap .tm-cname{font-weight:600;stroke-opacity:.92;}
+  .tibmap .tm-ctry{stroke-opacity:.85;}
+  /* Two names to a feature is a luxury of a wide map.  At this size the second
+     line is the whole difference between a legible map and a crowded one, so
+     Both shows the Latin name alone -- which is what the town names have always
+     done here -- and Tibetan keeps a mode of its own, whole and at full size,
+     where it is the name rather than a gloss under one. */
+  .tibmap[data-labels="both"] .tm-cbo,
+  .tibmap[data-labels="both"] .tm-hybo,
+  .tibmap[data-labels="both"] .tm-rgbo,
+  .tibmap[data-labels="both"] .tm-pkbo{display:none;}
+  /* With both physical layers up at once there are twenty-nine names on a map
+     the size of a postcard, and no type size answers that: large enough to read
+     is large enough to collide.  The map already has the move for a name with
+     nowhere to go -- it waits for the zoom that has room and fades in there --
+     so at this width the crests hand their names to that zoom while the water
+     keeps its own.  Ranges on their own are unaffected: it is the pair that has
+     no room, and a reader who wants the crests named has a mode that names them. */
+  .tibmap .tm-relief [data-feat],.tibmap .tm-relief .tm-lead{transition:opacity .2s ease;}
+  .tibmap[data-rivers="true"][data-ranges="true"][data-gates="1"] .tm-relief [data-feat],
+  .tibmap[data-rivers="true"][data-ranges="true"][data-gates="1"] .tm-relief .tm-lead{
+    opacity:0;pointer-events:none;}
+  .tibmap .tm-insetlayer{display:none;}
+  /* The dot is geography and does not take --tm-mag, but it is read as part of
+     the name beside it, so it grows on the same measure rather than staying the
+     size it was when that name was half as tall. */
+  .tibmap .tm-city{r:max(6px, calc(2px * var(--tm-px,1)));}
+  .tibmap .tm-cityring{r:max(13px, calc(4.4px * var(--tm-px,1)));
+    stroke-width:max(2px, calc(.75px * var(--tm-px,1)));}
+  .tibmap .tm-cityitem[data-key="0"]{display:none;}
+  .tibmap .tm-region{stroke-width:2;}
+  .tibmap .tm-outline{stroke-width:3.4;}
+  .tibmap .tm-admin{stroke-width:2.4;stroke-dasharray:11 8;}
+}
+
 @media (prefers-reduced-motion:reduce){
   .tibmap *{transition-duration:.01ms !important;animation-duration:.01ms !important;}
 }
@@ -889,6 +978,36 @@
     zbtn['reset'].hidden = zk<=Z_MIN+1e-6;
   }
 
+  /* How large a viewBox unit is on the glass, and how far the type layer has to
+     be lifted to answer for it.  getScreenCTM() is asked rather than the stage's
+     width because it is the one number that is already right whatever
+     preserveAspectRatio has done with a stage taller than the map -- the same
+     reason the pan arithmetic goes through it.  --tm-px is the measurement and
+     nothing more; the sheet decides what to do with it, and says through
+     --tm-small which of its two regimes is live, so the breakpoint stays a
+     container query and is not written down a second time here.
+
+     The magnification is floored at the step this map has always taken on a
+     small container, so the widest of them -- a phone held sideways, a narrow
+     embed -- keep the type they had; and capped, so a very small frame stops
+     enlarging rather than filling itself with names. */
+  var MAG_MIN=1.95, MAG_MAX=3, MAG_LIFT=.84, lastPx=0;
+  function measureType(){
+    var m=svg.getScreenCTM(), sc=m&&m.a;
+    if(!sc){
+      var r=svg.getBoundingClientRect();
+      sc=Math.min(r.width/W, r.height/H);
+    }
+    if(!sc||!isFinite(sc)||sc<=0) return;
+    var px=1/sc;
+    if(Math.abs(px-lastPx)<0.005) return;
+    lastPx=px;
+    root.style.setProperty('--tm-px', r3(px));
+    var small=(getComputedStyle(svg).getPropertyValue('--tm-small')||'').trim()==='1';
+    root.style.setProperty('--tm-mag',
+      small ? r3(Math.min(MAG_MAX, Math.max(MAG_MIN, px*MAG_LIFT))) : '1');
+  }
+
   function ptToUser(cx,cy){
     var m=svg.getScreenCTM();
     if(!m) return {x:W/2,y:H/2};
@@ -1070,11 +1189,16 @@
   root.querySelector('[data-act="labels"]').textContent='Labels: '+(LABEL_TEXT[root.getAttribute('data-labels')]||'Both');
   setPhys(physMode());
   zApply();
+  measureType();
   reservePanel();
   select(root.getAttribute('data-selected')||'');
 
-  if(window.ResizeObserver) new ResizeObserver(reservePanel).observe(root);
-  else window.addEventListener('resize',reservePanel);
+  /* One pass for both: the type's measure and the panel's reservation are the
+     two things that only a laid-out widget can answer, and both change for the
+     same reason -- the widget got wider or narrower. */
+  function remeasure(){ measureType(); reservePanel(); }
+  if(window.ResizeObserver) new ResizeObserver(remeasure).observe(root);
+  else window.addEventListener('resize',remeasure);
   /* Web fonts change the text metrics, so measure again once they are in. */
   if(document.fonts&&document.fonts.ready){
     document.fonts.ready.then(function(){reservedFor=-1;reservePanel();});
