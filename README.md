@@ -26,8 +26,11 @@ a server, or paste a single block into a page you already have.
 - [Use it on your site](#use-it-on-your-site)
 - [Features](#features)
 - [Configuration](#configuration)
+- [Zoom and pan](#zoom-and-pan)
+- [Restyling](#restyling)
 - [JavaScript API](#javascript-api)
 - [Requirements](#requirements)
+- [Accessibility](#accessibility)
 - [About the boundaries](#about-the-boundaries)
 - [Contributing](#contributing)
 - [License](#license)
@@ -57,13 +60,12 @@ to build.
 | `tibet-three-regions-dark.svg` | Static map, dark. For `<img>`, a CMS, or print. |
 | `tibet-three-regions-light.svg` | Static map, light. |
 | `index.html` | The project's landing page, served by GitHub Pages. |
-| `INTEGRATION.md` | Full integration, theming and API reference. |
 | `LICENSE` | MIT for the code, CC0 1.0 for the map and text. |
 | `og-image.png`, `sitemap.xml` | Social-share card and sitemap for the hosted site. |
 
-**Option 1 — iframe.** Fully isolated from your CSS; you only have to pick a
-height. [`INTEGRATION.md`](INTEGRATION.md) has a `postMessage` snippet that
-makes it self-sizing.
+**Option 1 — iframe (fastest).** Drop the HTML file anywhere on your server and
+point an iframe at it. Fully isolated from your CSS; the only cost is that you
+have to pick a height.
 
 ```html
 <iframe src="/maps/tibet-three-regions-map.html"
@@ -72,11 +74,42 @@ makes it self-sizing.
         title="The three regions of Tibet"></iframe>
 ```
 
-**Option 2 — inline.** Copy everything between the `COPY FROM HERE` and
-`COPY TO HERE` comments in the HTML file and paste it into your page. That
-block is the container div, its `<style>` and its `<script>` — nothing else is
-needed. Every selector is scoped to `.tibmap` and every SVG class is prefixed
-`tm-`, so it will not collide with your stylesheet.
+To make it self-sizing instead, add this to your page:
+
+```html
+<script>
+window.addEventListener('message', function (e) {
+  if (e.data && e.data.tibmapHeight) {
+    document.querySelector('iframe[src*="tibet-three-regions"]')
+            .style.height = e.data.tibmapHeight + 'px';
+  }
+});
+</script>
+```
+
+…and this just before `</body>` inside the map file:
+
+```html
+<script>
+new ResizeObserver(function () {
+  parent.postMessage({ tibmapHeight: document.body.scrollHeight }, '*');
+}).observe(document.body);
+</script>
+```
+
+**Option 2 — inline (better, if you control the page).** Open
+`tibet-three-regions-map.html` and copy everything between
+
+```
+<!-- ══════════ COPY FROM HERE ══════════ -->
+...
+<!-- ══════════ COPY TO HERE ══════════ -->
+```
+
+Paste it into your page. That block is the container div, its `<style>` and its
+`<script>` — nothing else is needed. Every selector is scoped to `.tibmap` and
+every SVG class is prefixed `tm-`, so it will not collide with your stylesheet.
+The widget fills its parent's width up to `--tm-max` (1180px).
 
 **Option 3 — static image.** Use the two SVGs in a `<picture>` element so the
 map follows the visitor's colour scheme:
@@ -132,20 +165,62 @@ Set these on the container div. They can also be changed at runtime.
      data-labels="both"       <!-- both | en | bo -->
      data-admin="false"       <!-- true shows current provincial borders -->
      data-cities="true"       <!-- true | false -->
-     data-inset="true"        <!-- world locator box -->
+     data-inset="true"        <!-- world locator box, bottom-left of the map -->
      data-rivers="false"      <!-- true draws the rivers, lakes and their names -->
-     data-ranges="false"      <!-- true draws the ranges and peaks -->
-                              <!-- the two stay independent; the Physical
-                                   button cycles through their four combos -->
+     data-ranges="false"      <!-- true draws the range crests, peaks and names -->
+                              <!-- independent attributes, one button: Physical
+                                   cycles Off, Rivers, Ranges, Both. Set either
+                                   by hand and the button reports it -->
      data-zoom="true"        <!-- false removes zoom, pan and the control -->
      data-selected="kham">    <!-- utsang | kham | amdo | "" -->
 </div>
 ```
 
-Colours, fonts, maximum width and corner radius are CSS custom properties —
-`--tm-utsang`, `--tm-kham`, `--tm-amdo`, `--tm-gold`, `--tm-display`,
-`--tm-ui`, `--tm-max`, `--tm-radius` and more. Override them anywhere after the
-widget's `<style>`; [`INTEGRATION.md`](INTEGRATION.md) lists all of them.
+`data-theme="auto"` follows the visitor's `prefers-color-scheme`.
+
+## Zoom and pan
+
+The map scales between 1× (fit) and 8×. Content sits in a single transformed
+`<g>` rather than a rewritten `viewBox`, so the sea and the locator inset stay
+outside it: the background is always painted, and the inset stays pinned to its
+corner at every zoom. Panning is clamped so the map always covers its own frame.
+
+Gestures are chosen so an embedded map never fights the page around it:
+
+| gesture | what happens |
+|---|---|
+| `+` / `−` / slider / `↺` | zoom about the centre, reset |
+| drag with a mouse | pan |
+| one finger | scrolls **your page** at fit zoom; pans the map once zoomed in |
+| two fingers | pinch to zoom, always |
+| wheel | scrolls **your page**; `Ctrl`/`⌘` and the wheel zooms |
+| double-click | zoom in about the pointer |
+| keyboard | focus the map, then `+` `−` `0` and the arrow keys |
+
+A plain wheel is deliberately left to the page. Set `data-zoom="false"` to drop
+the whole feature, including the control, for a fixed map.
+
+## Restyling
+
+Colours, fonts, maximum width and corner radius are CSS custom properties.
+Override them anywhere after the widget's `<style>`:
+
+```css
+#tibet-map {
+  --tm-utsang: #8E2F3C;
+  --tm-kham:   #26596F;
+  --tm-amdo:   #35745A;
+  --tm-gold:   #C9A227;
+  --tm-max:    980px;         /* max width */
+  --tm-radius: 10px;
+  --tm-display: 'Your Display Face', Georgia, serif;
+  --tm-ui:      'Your UI Face', system-ui, sans-serif;
+}
+```
+
+Full list: `--tm-utsang --tm-kham --tm-amdo --tm-gold --tm-bg --tm-land
+--tm-land-2 --tm-hair --tm-ink --tm-ink-dim --tm-rule --tm-panel --tm-display
+--tm-ui --tm-bo --tm-radius --tm-max`.
 
 ## JavaScript API
 
@@ -156,7 +231,9 @@ TibetMap.setTheme('light');
 TibetMap.setZoom(2.5);          // 1 (fit) to 8
 TibetMap.getZoom();             // 2.5
 TibetMap.resetView();           // back to fit, centred
-TibetMap.on(function (region) { /* fires on every selection change */ });
+TibetMap.on(function (region) { // fires on every selection change
+  console.log('selected:', region);
+});
 TibetMap.regions;               // the descriptive copy, editable
 TibetMap.data;                  // raw paths, areas, coordinates
 ```
@@ -183,6 +260,16 @@ characters the map sets and embedded as a WOFF2 data URI. That is about 94 KB,
 and it is why the Tibetan is the one thing on this map that cannot fail to
 render. Add a Tibetan name and re-run that script, or `--check` will tell you
 the subset no longer covers the map.
+
+To use a different Tibetan face, point `--tm-bo` at your own `@font-face` and
+re-cut the embedded subset with the same script.
+
+## Accessibility
+
+Regions are keyboard-focusable (`Tab`, then `Enter`/`Space`). The panel is
+`aria-live="polite"`. Each region also carries a distinct hatch angle, so the
+three read apart without relying on colour. `prefers-reduced-motion` is
+respected.
 
 ## About the boundaries
 
@@ -228,16 +315,61 @@ Romanisation is not standardised: the same name may be spelled one way in the
 prose here and another in the widget's own data. The Tibetan is what binds them,
 so where the two disagree the Tibetan is the name that counts.
 
-**Checked against the CTA's own map.** The Central Tibetan Administration
-publishes [a map of Tibet under the PRC](https://tibet.net/about-tibet/map-of-tibet/)
-whose silhouette is the TAR, plus Qinghai, plus the Tibetan prefectures of
-Gansu, Sichuan and Yunnan — so its northern and western edge is the TAR and
-Qinghai provincial boundary. Measured against that boundary in Natural Earth
-10m, the line here agrees to within 0.25° of latitude from 79°E round to 98°E,
-which is finer than the ink on the printed map. Where it did not, at the top of
-the Tsaidam, it now does. See [INTEGRATION.md](INTEGRATION.md) for the detail.
+**Internationally recognised boundaries only.** Every region is clipped against
+the boundaries of India, Nepal, Bhutan, Bangladesh and Myanmar, so nothing
+administered by those states appears inside the highlight. The southern edge
+follows the Himalayan frontier and the western edge stops short of Ladakh and
+Jammu & Kashmir. This is done in the build step, not in CSS — the paths
+themselves no longer contain that ground.
 
-**These are traditional cultural regions of Great Tibet** Their
+In the west the line is checked against Natural Earth 10m, which draws
+boundaries as they are administered on the ground. That check moved the
+Demchok salient — about 4,600 km² east of Ladakh that the source data placed
+inside Ü-Tsang — back onto the Indian side, and the Ü-Tsang figure above
+reflects the smaller shape.
+
+The same rule applies to the **Current borders** overlay. Its dashed lines are
+clipped to the same footprint, so no dashed boundary runs through territory
+administered by India, Nepal, Bhutan, Bangladesh or Myanmar; where a provincial
+line meets one of those states it is carried along the internationally
+recognised boundary instead.
+
+**Northern rim.** The Changthang and Hoh Xil continue north of the Tibetan
+prefectures into Xinjiang and Gansu, so grouping prefectures alone leaves
+notches along that edge that no published cultural-area map draws. The northern
+boundary is therefore closed to follow the continuous landform. Everywhere else
+the outline is the prefecture mosaic as-is.
+
+**Checked against the CTA's own map.** The Central Tibetan Administration
+publishes [a map of Tibet under the PRC](https://tibet.net/about-tibet/map-of-tibet/).
+Its silhouette is the TAR, plus Qinghai, plus the Tibetan prefectures of Gansu,
+Sichuan and Yunnan — the same grouping used here — so its northern and western
+edge is simply the TAR and Qinghai provincial boundary. That makes it something
+this map can be measured against rather than eyeballed: the boundary is in
+Natural Earth 10m admin-1, which is public domain.
+
+Sampled every half-degree, the outline here sits within 0.25° of latitude of
+that boundary from 79°E all the way round to 98°E — finer than the ink on the
+printed map — with two exceptions.
+
+The first is between 88.5°E and 90.5°E, where Xinjiang reaches south to 36°N in
+a wedge 1.4° wide and 2.4° deep, separating the TAR from Qinghai. The CTA map
+closes that wedge and so does this one: the line steps up across it instead of
+tracing it.
+
+The second was at the top of the Tsaidam. Between 93.4°E and 96.0°E the line
+cut a chord 0.2–0.6° south of the smooth arc the CTA map draws over Tsonub,
+clipping off the Lenghu and Mahai country. It now follows that arc, taken from
+Natural Earth. About 7,000 km², to Amdo.
+
+Khunu Ri Gyu, the Kunlun, is the wall this rim runs along, so most of the range
+sits on the line rather than inside it; the widget draws the part that falls
+outside faintly. Moving the rim north to put the whole range inside would have
+put the line 0.6–3.0° north of where the CTA draws it, which is not a trade
+this map makes: the boundary follows the CTA's, and the range is drawn where it
+is.
+
+**These are traditional cultural regions of Great Tibet.** Their
 historical limits were never surveyed, they shifted over time, and different
 sources draw them differently — especially along the Gyalrong, Kongpo and
 Kokonor margins. Treat the lines as indicative; the *Current borders* toggle
@@ -260,9 +392,6 @@ together; they agree over 92.9% of their combined area. The remainder is a
 fringe of a few tens of kilometres, plus Arunachal Pradesh, which lies outside
 this map by design. That figure predates the Tsaidam correction above, which
 added about 7,000 km².
-
-[`INTEGRATION.md`](INTEGRATION.md) documents the prefecture grouping for each
-region and the northern-rim closure in full.
 
 ## Contributing
 
@@ -308,4 +437,3 @@ SIL Open Font License.
 
 
 ------------------ FREE TIBET ------------------ 
-
