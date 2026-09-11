@@ -99,8 +99,9 @@
   section{padding:34px 0;border-bottom:1px solid var(--rule);}
   h2{margin:0 0 12px;font:600 clamp(21px,3vw,27px)/1.25 var(--display);}
   h3{margin:26px 0 6px;font:600 18px/1.3 var(--ui);}
-  #boundaries ul{margin:10px 0 0;padding-left:20px;max-width:70ch;}
-  #boundaries li{margin:0 0 10px;line-height:1.85;}
+  #boundaries ul,#features ul{margin:10px 0 0;padding-left:20px;max-width:70ch;}
+  #boundaries li,#features li{margin:0 0 10px;line-height:1.85;}
+  kbd{font:inherit;font-size:.92em;padding:1px 5px;border:1px solid var(--hair);border-radius:3px;color:var(--ink);}
   /* Tibetan stacks need their own face and more leading than the UI font. */
   .bo-in{font-family:var(--bo);}
   p{max-width:70ch;}
@@ -248,6 +249,35 @@
   </div>
 </section>
 
+<section id="features">
+  <h2>What the map does</h2>
+  <ul>
+    <li><strong>Three selectable regions</strong>, each with its own colour <em>and</em> its own hatch
+    angle, so they read apart without depending on colour.</li>
+    <li><strong>Bilingual labels</strong> — English, Tibetan, or both.</li>
+    <li><strong>Current borders overlay</strong> — today's Tibet Autonomous Region and provincial
+    boundaries laid over the cultural regions, to compare the two.</li>
+    <li><strong>Rivers and ranges</strong> — the great rivers that rise on the plateau and five of its
+    lakes; the six gang of Kham, from <em>Chushi Gangdruk</em>, with the Himalaya, Kunlun, Gangdise,
+    Nyenchen Tanglha, Gdang La and Dhola Ringmo; and four peaks. Named in Tibetan and in Latin letters,
+    and drawn only where they run through the three regions. Off by default — the regions come first
+    and the physical layer is context you opt into. One <em>Physical</em> button cycles
+    Off → Rivers → Ranges → Both.</li>
+    <li><strong>Towns, a world locator inset and dark/light themes</strong>, each toggleable.</li>
+    <li><strong>Zoom and pan</strong> — a <kbd>+</kbd> / slider / <kbd>−</kbd> control at the map's
+    corner, drag to pan, pinch on a touch screen, double-click, <kbd>Ctrl</kbd>/<kbd>⌘</kbd> and the
+    wheel, or the keyboard. A plain wheel is deliberately left to the page, so an embedded map never
+    swallows the scroll of the page around it.</li>
+    <li><strong>A proportional bar</strong> across the top, sized by each region's share of the total
+    area.</li>
+    <li><strong>Keyboard accessible</strong> — regions are focusable (<kbd>Tab</kbd>, then
+    <kbd>Enter</kbd> or <kbd>Space</kbd>), the panel is <code>aria-live="polite"</code>, every shape
+    carries a label, and <code>prefers-reduced-motion</code> is respected.</li>
+    <li><strong>Responsive</strong> down to phone widths, through container queries.</li>
+    <li><strong>A small JavaScript API</strong>, so the map can drive the rest of your page.</li>
+  </ul>
+</section>
+
 <section id="boundaries">
   <h2>How the boundaries were drawn</h2>
   <p>The regions are built by grouping present-day prefectures, then dissolving and projecting
@@ -282,14 +312,45 @@
   </ul>
   <p>Romanisation is not standardised: the same name may be spelled one way in the prose here and another in the widget's own data. The Tibetan is what binds them, so where the two disagree the Tibetan is the name that counts.</p>
 
+  <h3>Internationally recognised boundaries only</h3>
+  <p>Every region is clipped against the boundaries of India, Nepal, Bhutan, Bangladesh and Myanmar,
+  so nothing administered by those states appears inside the highlight. The southern edge follows the
+  Himalayan frontier and the western edge stops short of Ladakh and Jammu &amp; Kashmir. This is done
+  in the build step, not in CSS — the paths themselves no longer contain that ground.</p>
+  <p>In the west the line is checked against Natural Earth 10m, which draws boundaries as they are
+  administered on the ground. That check moved the Demchok salient — about 4,600 km² east of Ladakh
+  that the source data placed inside Ü-Tsang — back onto the Indian side, and the Ü-Tsang figure above
+  reflects the smaller shape.</p>
+  <p>The same rule applies to the <em>Current borders</em> overlay. Its dashed lines are clipped to the
+  same footprint, so no dashed boundary runs through territory administered by those states; where a
+  provincial line meets one of them it is carried along the internationally recognised boundary
+  instead.</p>
+
+  <h3>Northern rim</h3>
+  <p>The Changthang and Hoh Xil continue north of the Tibetan prefectures into Xinjiang and Gansu, so
+  grouping prefectures alone leaves notches along that edge that no published cultural-area map draws.
+  The northern boundary is therefore closed to follow the continuous landform. Everywhere else the
+  outline is the prefecture mosaic as-is.</p>
+
   <h3>Checked against the CTA's own map</h3>
   <p>The Central Tibetan Administration publishes
   <a href="https://tibet.net/about-tibet/map-of-tibet/">a map of Tibet under the PRC</a> whose
   silhouette is the TAR, plus Qinghai, plus the Tibetan prefectures of Gansu, Sichuan and Yunnan —
-  so its northern and western edge is the TAR and Qinghai provincial boundary. Measured against
-  that boundary in Natural Earth 10m, the line here agrees to within 0.25° of latitude from 79°E
-  round to 98°E, finer than the ink on the printed map. Where it did not — a chord cut across the
-  top of the Tsaidam, 0.2–0.6° south of the arc the CTA map draws over Tsonub — it now does.</p>
+  the same grouping used here — so its northern and western edge is the TAR and Qinghai provincial
+  boundary. That boundary is in Natural Earth 10m, which is public domain, so this map can be measured
+  against it rather than eyeballed.</p>
+  <p>Sampled every half-degree, the outline here sits within 0.25° of latitude of that boundary from
+  79°E all the way round to 98°E — finer than the ink on the printed map — with two exceptions. The
+  first is between 88.5°E and 90.5°E, where Xinjiang reaches south to 36°N in a wedge 1.4° wide and
+  2.4° deep, separating the TAR from Qinghai: the CTA map closes that wedge and so does this one, the
+  line stepping up across it instead of tracing it. The second was at the top of the Tsaidam, where
+  between 93.4°E and 96.0°E the line cut a chord 0.2–0.6° south of the smooth arc the CTA map draws
+  over Tsonub, clipping off the Lenghu and Mahai country. It now follows that arc, taken from Natural
+  Earth — about 7,000 km², to Amdo.</p>
+  <p>Khunu Ri Gyu, the Kunlun, is the wall this rim runs along, so most of the range sits on the line
+  rather than inside it; the widget draws the part that falls outside faintly. Moving the rim north to
+  put the whole range inside would have put the line 0.6–3.0° north of where the CTA draws it, which is
+  not a trade this map makes: the boundary follows the CTA's, and the range is drawn where it is.</p>
 
   <h3>These are cultural regions of Great Tibet </h3>
   <p>Their historical limits were never surveyed, they shifted over time, and different sources
@@ -309,7 +370,9 @@
 
   <h3>Checked against a reference</h3>
   <p>The silhouette was compared with a published Tibetan cultural-area map by extracting that
-  map's outline and fitting the two together; they agree over 92.9% of their combined area.</p>
+  map's outline and fitting the two together; they agree over 92.9% of their combined area. The
+  remainder is a fringe of a few tens of kilometres, plus Arunachal Pradesh, which lies outside this
+  map by design. That figure predates the Tsaidam correction above, which added about 7,000 km².</p>
 </section>
 
 <section id="embed">
@@ -320,22 +383,40 @@
         style="width:100%;height:1050px;border:0"
         loading="lazy"
         title="The three regions of Tibet"&gt;&lt;/iframe&gt;</code></pre>
-  <p>You can also paste the widget straight into your own page, restyle it with CSS custom
-  properties, or drive it from JavaScript. Static SVG versions are included for print and for
-  content systems that cannot run scripts. Full instructions are in the
+  <p>If you control the page, you can paste the widget into it instead: everything between the two
+  <code>COPY FROM HERE</code> / <code>COPY TO HERE</code> markers in the map file is the container, its
+  <code>&lt;style&gt;</code> and its <code>&lt;script&gt;</code>, and nothing else is needed. Every
+  selector is scoped to <code>.tibmap</code> and every SVG class is prefixed <code>tm-</code>, so it
+  will not collide with your stylesheet.</p>
+  <p>For print, or for a content system that cannot run scripts, there are two static SVGs — one dark,
+  one light — meant for a <code>&lt;picture&gt;</code> element that follows the visitor's colour scheme.
+  They carry Latin labels only: an SVG loaded through <code>&lt;img&gt;</code> cannot fetch a webfont,
+  and most systems ship no Tibetan font, so the script would render as empty boxes. The interactive
+  version shows both.</p>
+  <p>Colours, fonts, maximum width and corner radius are CSS custom properties
+  (<code>--tm-utsang</code>, <code>--tm-kham</code>, <code>--tm-amdo</code>, <code>--tm-max</code> and
+  the rest), and a small API — <code>TibetMap.select()</code>, <code>.setTheme()</code>,
+  <code>.setZoom()</code>, <code>.on()</code> — lets the map drive the rest of your page.</p>
+  <p>Any current browser will do: the widget uses CSS custom properties, container queries and
+  <code>ResizeObserver</code>, so Chrome/Edge 105+, Firefox 110+ and Safari 16+ are the practical
+  floor. There are no polyfills, no bundler and no runtime dependencies. The two Google Fonts families
+  are cosmetic and can be dropped for a fully offline file; the Tibetan face is not fetched at all but
+  carried in the file as a subset WOFF2, which is why the Tibetan is the one thing on this map that
+  cannot fail to render. Full instructions are in the
   <a href="https://github.com/Zorawae/Great-Tibet-Map">project repository on GitHub</a>.</p>
 </section>
 
 </main>
 
 <footer>
-  <p><strong>Great Tibet Map By Zorawae </strong> — open source. Code under the MIT licence; the map
+  <p><strong>Great Tibet Map by Zorawae</strong> — open source. Code under the MIT licence; the map
   geometry and the writing under
   <a href="https://creativecommons.org/publicdomain/zero/1.0/" rel="license">CC0 1.0</a>, dedicated
-  to the public domain. Reuse it anywhere, no credit required. Corrections and pull requests are welcome on  
-  <a href="https://github.com/Zorawae/Great-Tibet-Map">GitHub</a>.  </p>
-  
-  - FREE TIBET </p>
+  to the public domain. Reuse it anywhere, commercially included, no credit required. Corrections and
+  pull requests are welcome on
+  <a href="https://github.com/Zorawae/Great-Tibet-Map">GitHub</a>.</p>
+
+  <p>— FREE TIBET</p>
 
 </footer>
 
