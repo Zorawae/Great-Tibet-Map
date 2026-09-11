@@ -259,30 +259,6 @@ put the line 0.6–3.0° north of where the CTA draws it, which is not a trade
 this map makes: the boundary follows the CTA's, and the range is drawn where it
 is.
 
-**Which of the several outlines this is.** Maps captioned "Tibet" do not all
-draw the same shape, and comparing this one against a map that draws a different
-one will look like a discrepancy when it is not. Four outlines are in common
-circulation:
-
-1. **Historical Tibet** — the maximal extent, reaching north over the Kunlun and
-   west into what is now Xinjiang and Ladakh.
-2. **Tibet between 1914 and 1950** — the territory administered from Lhasa,
-   stopping short of most of Kham and Amdo.
-3. **Tibet since 1965** — the Tibet Autonomous Region alone.
-4. **The whole territory as distributed among Chinese provinces** — the TAR plus
-   Qinghai plus the Tibetan prefectures of Gansu, Sichuan and Yunnan.
-
-This map draws the fourth, which is also the one the CTA's map draws. That is
-why the northern rim sits on the TAR and Qinghai provincial line rather than
-north of the Kunlun: the Kunlun rim belongs to outline 1, not to this one.
-
-Reference maps that show all four together are useful for placing this map among
-them, but not for correcting its geometry: the ones consulted here carry no
-graticule, draw their borders at a line width worth 0.3–0.5° on the ground, and
-carry no attribution or projection statement. Natural Earth's admin-1 boundary
-is used instead, because outline 4 is a present-day administrative line and is
-therefore measurable.
-
 **Checked against a reference.** The silhouette was compared with a published
 Tibetan cultural-area map by extracting that map's outline and fitting the two
 together: they agree over 92.9% of their combined area. The residual differences

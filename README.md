@@ -237,15 +237,6 @@ Qinghai provincial boundary. Measured against that boundary in Natural Earth
 which is finer than the ink on the printed map. Where it did not, at the top of
 the Tsaidam, it now does. See [INTEGRATION.md](INTEGRATION.md) for the detail.
 
-**Which of the several outlines this is.** Maps captioned "Tibet" do not all
-draw the same shape. Four are in common circulation: the maximal historical
-extent; the territory administered from Lhasa between 1914 and 1950; the Tibet
-Autonomous Region alone from 1965; and the whole of the Tibetan territory as it
-was distributed among Chinese provinces after the TAR was established. This map
-draws the last of those — the same silhouette the CTA's map draws — and puts the
-three cultural regions inside it. It is not the 1914–1950 administrative
-boundary, and it is not the TAR on its own.
-
 **These are traditional cultural regions of Great Tibet** Their
 historical limits were never surveyed, they shifted over time, and different
 sources draw them differently — especially along the Gyalrong, Kongpo and
