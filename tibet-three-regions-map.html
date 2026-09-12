@@ -534,7 +534,12 @@
   .tibmap[data-rivers="true"][data-ranges="true"][data-gates="1"] .tm-relief [data-feat],
   .tibmap[data-rivers="true"][data-ranges="true"][data-gates="1"] .tm-relief .tm-lead{
     opacity:0;pointer-events:none;}
-  .tibmap .tm-insetlayer{display:none;}
+  /* The locator inset is the one piece of the map that goes away at this width:
+     a postcard has no corner to spare for a second map.  Its button goes with
+     it, on the same rule, so the control bar never offers a toggle for
+     something that is not on the map to toggle. */
+  .tibmap .tm-insetlayer,
+  .tibmap [data-act="inset"]{display:none;}
   /* The dot is geography and does not take --tm-mag, but it is read as part of
      the name beside it, so it grows on the same measure rather than staying the
      size it was when that name was half as tall. */
