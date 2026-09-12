@@ -104,7 +104,14 @@
   --tm-amdo:#347C5B;
   --tm-gold:#A87A18;
   --tm-water:#12628F;
-  --tm-relief:#6E5C3C;
+  /* The crests are drawn over the region fills, and the fills do not invert
+     between the themes -- only the land does.  So the dark theme's move, a tan
+     lifted above everything under it, has no mirror here: a mid-brown picked
+     against the pale land lands on the same luminance as madder and azurite and
+     the spines disappear into them.  This is the rule the -lab inks below
+     already follow, applied to the ink that draws the line: in this theme,
+     clear of the region fills means under them. */
+  --tm-relief:#2E2410;
   --tm-water-lab:#0A4664;
   --tm-relief-lab:#4A3A1E;
   --tm-bg:#F7F4EE;
